@@ -172,7 +172,7 @@ private:
     DebugMode debugMode_;
     uint8_t debugTrigger_;
     Stream *serial_;
-    uint8_t logBuffer_[];
+    uint8_t *logBuffer_;
     uint16_t logBufferLength_, logSize_;
     uint16_t listenTimeoutTicks_, endedCaptureTicks_;
     uint16_t receivedBits_;
@@ -185,6 +185,6 @@ private:
     uint16_t bit1HighTicks_, bit1LowTicks_, bit0HighTicks_, bit0LowTicks_, sendRecoveryTicks_;
     uint16_t timeoutReplyTicks_, timeoutBitsTicks_, timeoutBitTicks_, bit1HighMinTicks_;
     
-}
+};
 
 #endif /* DMCOMM_H_ */
