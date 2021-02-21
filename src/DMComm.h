@@ -116,10 +116,11 @@ public:
     /**
      * Set a pin for LED output. Initially DMCOMM_NO_PIN, which disables it.
      */
-    void setLedPin(uint8_t ledPin);
+    void setPinLed(uint8_t pinLed);
     
     /**
-      * Provide a stream for reporting results. If this is not done, no results will be reported.
+      * Specify the serial port for reporting results.
+      * If this is not done, no results will be reported.
       */
     void setSerial(Stream& serial);
     
