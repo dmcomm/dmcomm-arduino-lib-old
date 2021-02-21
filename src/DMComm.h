@@ -3,6 +3,34 @@
 #define DMCOMM_H_
 
 #define DMCOMM_NO_PIN 0xFF
+#define DMCOMM_TICK_MICROS 200
+
+#define DMCOMM_LOG_PREFIX_LOW    0b00000000
+#define DMCOMM_LOG_PREFIX_HIGH   0b01000000
+#define DMCOMM_LOG_PREFIX_AGAIN  0b10000000
+#define DMCOMM_LOG_PREFIX_OTHER  0b11000000
+#define DMCOMM_LOG_MAX_COUNT     0b00111111
+#define DMCOMM_LOG_COUNT_BITS             6
+#define DMCOMM_LOG_PREFIX_TICK_OVERRUN 0xF0
+#define DMCOMM_LOG_MAX_TICKS_MISSED    0x0F
+
+#define DMCOMM_LOG_OPP_ENTER_WAIT      0xC0
+#define DMCOMM_LOG_OPP_INIT_PULLDOWN   0xC1
+#define DMCOMM_LOG_OPP_START_BIT_HIGH  0xC2
+#define DMCOMM_LOG_OPP_START_BIT_LOW   0xC3
+#define DMCOMM_LOG_OPP_BITS_BEGIN_HIGH 0xC4
+#define DMCOMM_LOG_OPP_GOT_BIT_0       0xC5
+#define DMCOMM_LOG_OPP_GOT_BIT_1       0xC6
+#define DMCOMM_LOG_OPP_EXIT_OK         0xC8
+#define DMCOMM_LOG_OPP_EXIT_FAIL       0xC9
+
+#define DMCOMM_LOG_SELF_ENTER_DELAY    0xE0
+#define DMCOMM_LOG_SELF_INIT_PULLDOWN  0xE1
+#define DMCOMM_LOG_SELF_START_BIT_HIGH 0xE2
+#define DMCOMM_LOG_SELF_START_BIT_LOW  0xE3
+#define DMCOMM_LOG_SELF_SEND_BIT_0     0xE5
+#define DMCOMM_LOG_SELF_SEND_BIT_1     0xE6
+#define DMCOMM_LOG_SELF_RELEASE        0xE7
 
 class DMComm {
 
@@ -93,7 +121,7 @@ public:
     /**
       * Provide a stream for reporting results. If this is not done, no results will be reported.
       */
-    void setSerial(Stream serial);
+    void setSerial(Stream& serial);
     
     /**
      * Provide a buffer for storing the debug log. If this is not done, no logging will occur.
@@ -107,7 +135,15 @@ public:
     
     /**
      * Set the debug mode and trigger. The trigger is activated at the start of a packet.
-     * Packets are numbered 1A,1B,2A,2B...
+     * @param debugMode see DebugMode.
+     * @param trigger the packet number counted from 1 in the result sequence.
+     * 0 for no trigger, i.e. start right away.
+     */
+    void configureDebug(DebugMode debugMode, uint8_t trigger);
+    
+    /**
+     * Set the debug mode and trigger. The trigger is activated at the start of a packet.
+     * Packets are numbered 1A,1B,2A,2B... (corresponding to the protocol documentation).
      * @param debugMode see DebugMode.
      * @param packetNum the packet number counted from 1 on each side.
      * 0 for no trigger, i.e. start right away.
@@ -128,6 +164,27 @@ public:
      * Note that ESP32 defaults to 12 bits.
      */
     void configureAnalog(BoardVoltage boardVoltage, uint8_t readResolution);
+    
+private:
+    
+    uint8_t pinAnalog_, pinOut_, pinNotOE_, pinLed_;
+    BoardVoltage boardVoltage_;
+    DebugMode debugMode_;
+    uint8_t debugTrigger_;
+    Stream *serial_;
+    uint8_t logBuffer_[];
+    uint16_t logBufferLength_, logSize_;
+    uint16_t listenTimeoutTicks_, endedCaptureTicks_;
+    uint16_t receivedBits_;
+    
+    //might do this a different way
+    int8_t timingID_;
+    uint8_t sensorThreshold_, logicHighLevel_, logicLowLevel_;
+    bool invertBitRead_;
+    uint16_t preHighTicks_, preLowTicks_, startHighTicks_, startLowTicks_;
+    uint16_t bit1HighTicks_, bit1LowTicks_, bit0HighTicks_, bit0LowTicks_, sendRecoveryTicks_;
+    uint16_t timeoutReplyTicks_, timeoutBitsTicks_, timeoutBitTicks_, bit1HighMinTicks_;
+    
 }
 
 #endif /* DMCOMM_H_ */
