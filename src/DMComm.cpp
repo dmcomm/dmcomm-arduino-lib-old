@@ -60,3 +60,68 @@ void DMComm::begin() {
 
 void DMComm::end() {
 }
+
+
+void DMComm::reset() {
+    //TODO
+}
+
+int8_t DMComm::receivePacket(uint32_t timeoutMicros) {
+    //TODO
+    receivedBits_ = 0xAAAA;
+    return 0;
+}
+
+uint16_t DMComm::getReceivedBits() {
+    return receivedBits_;
+}
+
+void DMComm::sendPacket(uint16_t bitsToSend) {
+    //TODO
+}
+
+int8_t DMComm::sendPacket(uint8_t digitsToSend[]) {
+    //TODO
+    return 0;
+}
+
+int8_t DMComm::execute(uint8_t command[]) {
+    //TODO
+    return 0;
+}
+
+void DMComm::setPinLed(uint8_t pinLed) {
+    //TODO
+}
+
+void DMComm::setSerial(Stream& serial) {
+    serial_ = &serial;
+}
+
+void DMComm::setLogBuffer(uint8_t buffer[], uint16_t length) {
+    logBuffer_ = buffer;
+    logBufferLength_ = length;
+}
+
+void DMComm::configureDebug(DebugMode debugMode) {
+    debugMode_ = debugMode;
+}
+
+void DMComm::configureDebug(DebugMode debugMode, uint8_t trigger) {
+    debugMode_ = debugMode;
+    debugTrigger_ = trigger;
+}
+
+void DMComm::configureDebug(DebugMode debugMode, uint8_t packetNum, uint8_t ab) {
+    debugMode_ = debugMode;
+    //TODO
+}
+
+uint16_t DMComm::getLogSize() {
+    return logSize_;
+}
+
+void DMComm::configureAnalog(BoardVoltage boardVoltage, uint8_t readResolution) {
+    boardVoltage_ = boardVoltage;
+    readResolution_ = readResolution;
+}
