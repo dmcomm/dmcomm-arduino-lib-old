@@ -170,22 +170,15 @@ private:
     
     uint8_t pinAnalog_, pinOut_, pinNotOE_, pinLed_;
     BoardVoltage boardVoltage_;
+    uint8_t readResolution_;
     DebugMode debugMode_;
     uint8_t debugTrigger_;
     Stream *serial_;
     uint8_t *logBuffer_;
     uint16_t logBufferLength_, logSize_;
-    uint16_t listenTimeoutTicks_, endedCaptureTicks_;
+    uint8_t configIndex_;
     uint16_t receivedBits_;
-    
-    //might do this a different way
-    int8_t timingID_;
-    uint8_t sensorThreshold_, logicHighLevel_, logicLowLevel_;
-    bool invertBitRead_;
-    uint16_t preHighTicks_, preLowTicks_, startHighTicks_, startLowTicks_;
-    uint16_t bit1HighTicks_, bit1LowTicks_, bit0HighTicks_, bit0LowTicks_, sendRecoveryTicks_;
-    uint16_t timeoutReplyTicks_, timeoutBitsTicks_, timeoutBitTicks_, bit1HighMinTicks_;
-    
+    uint16_t listenTimeoutTicks_, endedCaptureTicks_;
 };
 
 #endif /* DMCOMM_H_ */

@@ -1,6 +1,31 @@
 #include <Arduino.h>
 #include "DMComm.h"
 
+#define CONF_INDEX_V 0
+#define CONF_INDEX_X 1
+#define CONF_INDEX_Y 2
+
+#define CONF_BYTE(name) pgm_read_byte_near(name + configIndex_)
+#define CONF_WORD(name) pgm_read_word_near(name + configIndex_)
+
+static const uint8_t  logicHighLevel[]  PROGMEM = {HIGH, HIGH, LOW};
+static const uint8_t  logicLowLevel[]   PROGMEM = {LOW, LOW, HIGH};
+static const uint8_t  invertBitRead[]   PROGMEM = {false, false, true};
+static const uint8_t  sensorThreshold[] PROGMEM = {37, 37, 25}; // 1.3V and 1.9V approx
+static const uint16_t preHighTicks[]    PROGMEM = {15, 15, 25};
+static const uint16_t preLowTicks[]     PROGMEM = {295, 300, 200};
+static const uint16_t startHighTicks[]  PROGMEM = {10, 11, 55};
+static const uint16_t startLowTicks[]   PROGMEM = {4, 8, 30};
+static const uint16_t bit1HighTicks[]   PROGMEM = {13, 20, 7};
+static const uint16_t bit1LowTicks[]    PROGMEM = {8, 8, 22};
+static const uint16_t bit0HighTicks[]   PROGMEM = {5, 8, 20};
+static const uint16_t bit0LowTicks[]    PROGMEM = {15, 20, 8};
+static const uint16_t bit1HighMinTicks[] PROGMEM = {9, 13, 15};
+static const uint16_t sendRecoveryTicks[] PROGMEM = {2, 2, 1};
+static const uint16_t timeoutReplyTicks[] PROGMEM = {500, 500, 500};
+static const uint16_t timeoutBitsTicks[] PROGMEM = {1000, 1000, 1000};
+static const uint16_t timeoutBitTicks[] PROGMEM = {25, 35, 100};
+
 static void pinModeMaybe(uint8_t pin, uint8_t mode) {
     if (pin != DMCOMM_NO_PIN) {
         pinMode(pin, mode);
@@ -15,8 +40,10 @@ static void digitalWriteMaybe(uint8_t pin, uint8_t val) {
 
 DMComm::DMComm(uint8_t pinAnalog, uint8_t pinOut, uint8_t pinNotOE) :
     pinAnalog_(pinAnalog), pinOut_(pinOut), pinNotOE_(pinNotOE), pinLed_(DMCOMM_NO_PIN),
-    boardVoltage_(BOARD_5V), debugMode_(DEBUG_OFF), debugTrigger_(0),
-    serial_(NULL), logBuffer_(NULL), logBufferLength_(0), logSize_(0)
+    boardVoltage_(BOARD_5V), readResolution_(10), debugMode_(DEBUG_OFF), debugTrigger_(0),
+    serial_(NULL), logBuffer_(NULL), logBufferLength_(0), logSize_(0),
+    configIndex_(CONF_INDEX_V), receivedBits_(0),
+    listenTimeoutTicks_(15000), endedCaptureTicks_(2500)
 {}
 
 DMComm::~DMComm() {
