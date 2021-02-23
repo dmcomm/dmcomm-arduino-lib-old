@@ -46,6 +46,12 @@ public:
     enum DebugMode {DEBUG_OFF, DEBUG_DIGITAL, DEBUG_ANALOG};
     
     /**
+     * The low-level protocol for communicating with the toy.
+     * V for 2-prong, X for 3-prong, Y for Xros Mini.
+     */
+    enum ToyProtocol {PROTOCOL_V = 0, PROTOCOL_X = 1, PROTOCOL_Y = 2};
+    
+    /**
      * Create the object, taking no action on the hardware.
      * @param pinAnalog the pin number for the analog input.
      * @param pinOut the pin number for the main output.
@@ -72,8 +78,9 @@ public:
     /**
      * Reset the system before starting a communication sequence using the single-packet functions.
      * This is not required with the `execute` function.
+     * @param protocol see ToyProtocol.
      */
-    void reset();
+    void beginComm(ToyProtocol protocol);
     
     /**
      * Receive a single packet and store the resulting bits.

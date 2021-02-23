@@ -1,10 +1,6 @@
 #include <Arduino.h>
 #include "DMComm.h"
 
-#define CONF_INDEX_V 0
-#define CONF_INDEX_X 1
-#define CONF_INDEX_Y 2
-
 #define CONF_BYTE(name) pgm_read_byte_near(name + configIndex_)
 #define CONF_WORD(name) pgm_read_word_near(name + configIndex_)
 
@@ -42,7 +38,7 @@ DMComm::DMComm(uint8_t pinAnalog, uint8_t pinOut, uint8_t pinNotOE) :
     pinAnalog_(pinAnalog), pinOut_(pinOut), pinNotOE_(pinNotOE), pinLed_(DMCOMM_NO_PIN),
     boardVoltage_(BOARD_5V), readResolution_(10), debugMode_(DEBUG_OFF), debugTrigger_(0),
     serial_(NULL), logBuffer_(NULL), logBufferLength_(0), logSize_(0),
-    configIndex_(CONF_INDEX_V), receivedBits_(0),
+    configIndex_(PROTOCOL_V), receivedBits_(0),
     listenTimeoutTicks_(15000), endedCaptureTicks_(2500)
 {}
 
@@ -61,9 +57,9 @@ void DMComm::begin() {
 void DMComm::end() {
 }
 
-
-void DMComm::reset() {
+void DMComm::beginComm(ToyProtocol protocol) {
     //TODO
+    configIndex_ = protocol;
 }
 
 int8_t DMComm::receivePacket(uint32_t timeoutMicros) {
