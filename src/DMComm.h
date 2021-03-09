@@ -4,6 +4,8 @@
 
 #define DMCOMM_NO_PIN 0xFF
 #define DMCOMM_TICK_MICROS 200
+#define DMCOMM_COMMAND_BUFFER_SIZE 64
+#define DMCOMM_SERIAL_TIMEOUT_MILLIS 6000
 
 #define DMCOMM_LOG_PREFIX_LOW    0b00000000
 #define DMCOMM_LOG_PREFIX_HIGH   0b01000000
@@ -76,6 +78,12 @@ public:
     void end();
     
     /**
+     * Do one iteration of checking the serial for instructions and carrying them out.
+     * (Does nothing if no serial is set.)
+     */
+    void loop();
+    
+    /**
      * Reset the system before starting a communication sequence using the single-packet functions.
      * This is not required with the `execute` function.
      * @param protocol see ToyProtocol.
@@ -126,8 +134,8 @@ public:
     void setPinLed(uint8_t pinLed);
     
     /**
-      * Specify the serial port for reporting results.
-      * If this is not done, no results will be reported.
+      * Specify the serial port for the loop function and for reporting results.
+      * If this is not done, the loop function will do nothing and no results will be reported.
       */
     void setSerial(Stream& serial);
     
@@ -186,6 +194,17 @@ private:
     uint8_t configIndex_;
     uint16_t receivedBits_;
     uint16_t listenTimeoutTicks_, endedCaptureTicks_;
+    bool loopActive_, listenOnly_, goFirst_;
+    uint8_t numPackets_;
+    uint8_t commandBuffer_[DMCOMM_COMMAND_BUFFER_SIZE];
+    
+    /*
+     * Try to read from serial into command buffer.
+     * Read until end-of-line and replace that with a null terminator.
+     * Should only be called if serial is present.
+     * @return 0 on failure, or a positive integer for the number of characters read.
+     */
+    uint8_t readCommand();
 };
 
 #endif /* DMCOMM_H_ */

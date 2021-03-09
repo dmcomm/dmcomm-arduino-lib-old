@@ -39,7 +39,8 @@ DMComm::DMComm(uint8_t pinAnalog, uint8_t pinOut, uint8_t pinNotOE) :
     boardVoltage_(BOARD_5V), readResolution_(10), debugMode_(DEBUG_OFF), debugTrigger_(0),
     serial_(NULL), logBuffer_(NULL), logBufferLength_(0), logSize_(0),
     configIndex_(PROTOCOL_V), receivedBits_(0),
-    listenTimeoutTicks_(15000), endedCaptureTicks_(2500)
+    listenTimeoutTicks_(15000), endedCaptureTicks_(2500),
+    loopActive_(false)
 {}
 
 DMComm::~DMComm() {
@@ -55,6 +56,21 @@ void DMComm::begin() {
 }
 
 void DMComm::end() {
+}
+
+void DMComm::loop() {
+    if (serial_ == NULL) {
+        return;
+    }
+    uint16_t i = readCommand();
+    if (i > 0) {
+        serial_->print(F("got "));
+        serial_->print(i, DEC);
+        serial_->print(F(" bytes: "));
+        serial_->write(commandBuffer_, i);
+        serial_->print(F(" -> "));
+    }
+    //TODO
 }
 
 void DMComm::beginComm(ToyProtocol protocol) {
@@ -120,4 +136,39 @@ uint16_t DMComm::getLogSize() {
 void DMComm::configureAnalog(BoardVoltage boardVoltage, uint8_t readResolution) {
     boardVoltage_ = boardVoltage;
     readResolution_ = readResolution;
+}
+
+
+uint8_t DMComm::readCommand() {
+    unsigned long timeStart; //same type as millis()
+    unsigned long time;
+    int incomingInt; //same type as Stream.read()
+    uint8_t incomingByte;
+    uint8_t i = 0;
+    
+    if (serial_->available() == 0) {
+        return 0;
+    }
+    timeStart = millis();
+    do {
+        do {
+            incomingInt = serial_->read();
+            time = millis() - timeStart;
+            if (time > DMCOMM_SERIAL_TIMEOUT_MILLIS) {
+                serial_->println(F("too late"));
+                return 0;
+            }
+        } while (incomingInt == -1);
+        incomingByte = incomingInt;
+        if (incomingByte != '\r' && incomingByte != '\n') {
+            commandBuffer_[i] = incomingByte;
+            i += 1;
+        }
+    } while (incomingByte != '\r' && incomingByte != '\n' && i < DMCOMM_COMMAND_BUFFER_SIZE - 1);
+    if (incomingByte != '\r' && incomingByte != '\n') {
+        serial_->println(F("too long"));
+        return 0;
+    }
+    commandBuffer_[i] = '\0';
+    return i;
 }
