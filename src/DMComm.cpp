@@ -40,7 +40,7 @@ DMComm::DMComm(uint8_t pinAnalog, uint8_t pinOut, uint8_t pinNotOE) :
     serial_(NULL), logBuffer_(NULL), logBufferLength_(0), logSize_(0),
     configIndex_(PROTOCOL_V), receivedBits_(0),
     listenTimeoutTicks_(15000), endedCaptureTicks_(2500),
-    loopActive_(false)
+    commCommandActive_(false)
 {}
 
 DMComm::~DMComm() {
@@ -62,15 +62,109 @@ void DMComm::loop() {
     if (serial_ == NULL) {
         return;
     }
-    uint16_t i = readCommand();
-    if (i > 0) {
+    uint8_t length = readCommand();
+    if (length > 0) {
         serial_->print(F("got "));
-        serial_->print(i, DEC);
+        serial_->print(length, DEC);
         serial_->print(F(" bytes: "));
-        serial_->write(commandBuffer_, i);
+        serial_->write(commandBuffer_, length);
         serial_->print(F(" -> "));
+        execute(commandBuffer_);
     }
     //TODO
+}
+
+int8_t DMComm::execute(uint8_t command[]) {
+    uint8_t i = 0;
+    while (commandBuffer_[i] != '\0') {
+        i ++;
+    }
+    if (commandBuffer_[0] == 't' || commandBuffer_[0] == 'T') {
+        serial_->println(F("[test voltages]"));
+        //TODO scanVoltages(true);
+    }
+    if ((commandBuffer_[0] == 'd' || commandBuffer_[0] == 'D') && i >= 2) {
+        if (commandBuffer_[1] == '0' || commandBuffer_[1] == 'o' || commandBuffer_[1] == 'O') {
+            serial_->print(F("debug off "));
+            debugMode_ = DEBUG_OFF;
+        } else if (commandBuffer_[1] == '1' || commandBuffer_[1] == 'd' || commandBuffer_[1] == 'D') {
+            serial_->print(F("debug digital "));
+            debugMode_ = DEBUG_DIGITAL;
+        } else if (commandBuffer_[1] == '2' || commandBuffer_[1] == 'a' || commandBuffer_[1] == 'A') {
+            serial_->print(F("debug analog "));
+            debugMode_ = DEBUG_ANALOG;
+        }
+        if (i >= 5 && commandBuffer_[2] == '-') {
+            //TODO setupTrigger(commandBuffer_[3], commandBuffer_[4]);
+        } else {
+            //TODO setupTrigger(' ', ' ');
+        }
+        if (debugMode_ != DEBUG_OFF) {
+            serial_->print(F("trigger="));
+            //TODO serialPrintTrigger();
+            serial_->write(' ');
+        }
+    }
+    commCommandActive_ = true;
+    if (commandBuffer_[0] == 'v' || commandBuffer_[0] == 'V') {
+        configIndex_ = PROTOCOL_V;
+        serial_->write('V');
+    } else if (commandBuffer_[0] == 'x' || commandBuffer_[0] == 'X') {
+        configIndex_ = PROTOCOL_X;
+        serial_->write('X');
+    } else if (commandBuffer_[0] == 'y' || commandBuffer_[0] == 'Y') {
+        configIndex_ = PROTOCOL_Y;
+        serial_->write('Y');
+    } else {
+        configIndex_ = PROTOCOL_V;
+        commCommandActive_ = false;
+    }
+    if (i < 2 || (i < 5 && commandBuffer_[1] != '0')) {
+        commCommandActive_ = false;
+    }
+    if (commCommandActive_) {
+        if (commandBuffer_[1] == '0') {
+            listenOnly_ = true;
+            goFirst_ = false;
+            serial_->write('0');
+        } else if (commandBuffer_[1] == '1') {
+            listenOnly_ = false;
+            goFirst_ = true;
+            serial_->write('1');
+        } else if (commandBuffer_[1] == '2') {
+            listenOnly_ = false;
+            goFirst_ = false;
+            serial_->write('2');
+        } else {
+            commCommandActive_ = false;
+            serial_->write('?');
+        }
+    }
+    if (i < 7 && !listenOnly_) {
+        commCommandActive_ = false;
+    }
+    if (commCommandActive_ && !listenOnly_) {
+        numPackets_ = 0;
+        for(i = 2; commandBuffer_[i] != '\0'; i ++) {
+            if (commandBuffer_[i] == '-') {
+                numPackets_ ++;
+            }
+        }
+        serial_->print(F("-["));
+        serial_->print(numPackets_);
+        serial_->print(F(" packets]"));
+    }
+    if (!commCommandActive_) {
+        serial_->print(F("(paused)"));
+    }
+    serial_->println();
+    
+    return 0; //TODO
+}
+
+int8_t DMComm::doComm() {
+    //TODO (take from after "do it")
+    return 0;
 }
 
 void DMComm::beginComm(ToyProtocol protocol) {
@@ -93,11 +187,6 @@ void DMComm::sendPacket(uint16_t bitsToSend) {
 }
 
 int8_t DMComm::sendPacket(uint8_t digitsToSend[]) {
-    //TODO
-    return 0;
-}
-
-int8_t DMComm::execute(uint8_t command[]) {
     //TODO
     return 0;
 }

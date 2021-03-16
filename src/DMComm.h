@@ -84,6 +84,22 @@ public:
     void loop();
     
     /**
+     * Carry out the command specified. See the serial codes documentation for details.
+     * Communication pattern codes configure the system to prepare for calling `doComm`.
+     * Config codes are executed immmediately.
+     * @param command a null-terminated byte string containing the command.
+     * @return (not decided yet).
+     */
+    int8_t execute(uint8_t command[]);
+    
+    /**
+     * Communicate with the toy as specified by the communication pattern code passed to
+     * the most recent call of `execute`.
+     * @return (not decided yet).
+     */
+    int8_t doComm();
+    
+    /**
      * Reset the system before starting a communication sequence using the single-packet functions.
      * This is not required with the `execute` function.
      * @param protocol see ToyProtocol.
@@ -119,14 +135,6 @@ public:
      * -1 if failed to parse.
      */
     int8_t sendPacket(uint8_t digitsToSend[]);
-    
-    /**
-     * Carry out the command specified. See the serial codes documentation for details.
-     * TBD: Will this just do communication codes, or config codes too?
-     * @param command a null-terminated byte string containing the command.
-     * @return (not decided yet).
-     */
-    int8_t execute(uint8_t command[]);
     
     /**
      * Set a pin for LED output. Initially DMCOMM_NO_PIN, which disables it.
@@ -191,10 +199,10 @@ private:
     Stream *serial_;
     uint8_t *logBuffer_;
     uint16_t logBufferLength_, logSize_;
-    uint8_t configIndex_;
+    ToyProtocol configIndex_;
     uint16_t receivedBits_;
     uint16_t listenTimeoutTicks_, endedCaptureTicks_;
-    bool loopActive_, listenOnly_, goFirst_;
+    bool commCommandActive_, listenOnly_, goFirst_;
     uint8_t numPackets_;
     uint8_t commandBuffer_[DMCOMM_COMMAND_BUFFER_SIZE];
     
