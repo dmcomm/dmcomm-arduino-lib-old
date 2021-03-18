@@ -3,6 +3,8 @@
 
 #define CONF_BYTE(name) pgm_read_byte_near(name + configIndex_)
 #define CONF_WORD(name) pgm_read_word_near(name + configIndex_)
+#define SERIAL_WRITE_MAYBE(value) if (serial_ != NULL) { serial_->write(value); }
+#define SERIAL_PRINT_MAYBE(value) if (serial_ != NULL) { serial_->print(value); }
 
 static const uint8_t  logicHighLevel[]  PROGMEM = {HIGH, HIGH, LOW};
 static const uint8_t  logicLowLevel[]   PROGMEM = {LOW, LOW, HIGH};
@@ -70,8 +72,9 @@ void DMComm::loop() {
         serial_->write(commandBuffer_, length);
         serial_->print(F(" -> "));
         execute(commandBuffer_);
+        //TODO add conditional delay after execute has a return value
     }
-    //TODO
+    doComm();
 }
 
 int8_t DMComm::execute(uint8_t command[]) {
@@ -80,18 +83,18 @@ int8_t DMComm::execute(uint8_t command[]) {
         i ++;
     }
     if (commandBuffer_[0] == 't' || commandBuffer_[0] == 'T') {
-        serial_->println(F("[test voltages]"));
+        SERIAL_PRINT_MAYBE(F("[test voltages]\n"));
         //TODO scanVoltages(true);
     }
     if ((commandBuffer_[0] == 'd' || commandBuffer_[0] == 'D') && i >= 2) {
         if (commandBuffer_[1] == '0' || commandBuffer_[1] == 'o' || commandBuffer_[1] == 'O') {
-            serial_->print(F("debug off "));
+            SERIAL_PRINT_MAYBE(F("debug off "));
             debugMode_ = DEBUG_OFF;
         } else if (commandBuffer_[1] == '1' || commandBuffer_[1] == 'd' || commandBuffer_[1] == 'D') {
-            serial_->print(F("debug digital "));
+            SERIAL_PRINT_MAYBE(F("debug digital "));
             debugMode_ = DEBUG_DIGITAL;
         } else if (commandBuffer_[1] == '2' || commandBuffer_[1] == 'a' || commandBuffer_[1] == 'A') {
-            serial_->print(F("debug analog "));
+            SERIAL_PRINT_MAYBE(F("debug analog "));
             debugMode_ = DEBUG_ANALOG;
         }
         if (i >= 5 && commandBuffer_[2] == '-') {
@@ -100,21 +103,21 @@ int8_t DMComm::execute(uint8_t command[]) {
             //TODO setupTrigger(' ', ' ');
         }
         if (debugMode_ != DEBUG_OFF) {
-            serial_->print(F("trigger="));
+            SERIAL_PRINT_MAYBE(F("trigger="));
             //TODO serialPrintTrigger();
-            serial_->write(' ');
+            SERIAL_WRITE_MAYBE(' ');
         }
     }
     commCommandActive_ = true;
     if (commandBuffer_[0] == 'v' || commandBuffer_[0] == 'V') {
         configIndex_ = PROTOCOL_V;
-        serial_->write('V');
+        SERIAL_WRITE_MAYBE('V');
     } else if (commandBuffer_[0] == 'x' || commandBuffer_[0] == 'X') {
         configIndex_ = PROTOCOL_X;
-        serial_->write('X');
+        SERIAL_WRITE_MAYBE('X');
     } else if (commandBuffer_[0] == 'y' || commandBuffer_[0] == 'Y') {
         configIndex_ = PROTOCOL_Y;
-        serial_->write('Y');
+        SERIAL_WRITE_MAYBE('Y');
     } else {
         configIndex_ = PROTOCOL_V;
         commCommandActive_ = false;
@@ -126,18 +129,18 @@ int8_t DMComm::execute(uint8_t command[]) {
         if (commandBuffer_[1] == '0') {
             listenOnly_ = true;
             goFirst_ = false;
-            serial_->write('0');
+            SERIAL_WRITE_MAYBE('0');
         } else if (commandBuffer_[1] == '1') {
             listenOnly_ = false;
             goFirst_ = true;
-            serial_->write('1');
+            SERIAL_WRITE_MAYBE('1');
         } else if (commandBuffer_[1] == '2') {
             listenOnly_ = false;
             goFirst_ = false;
-            serial_->write('2');
+            SERIAL_WRITE_MAYBE('2');
         } else {
             commCommandActive_ = false;
-            serial_->write('?');
+            SERIAL_WRITE_MAYBE('?');
         }
     }
     if (i < 7 && !listenOnly_) {
@@ -150,14 +153,14 @@ int8_t DMComm::execute(uint8_t command[]) {
                 numPackets_ ++;
             }
         }
-        serial_->print(F("-["));
-        serial_->print(numPackets_);
-        serial_->print(F(" packets]"));
+        SERIAL_PRINT_MAYBE(F("-["));
+        SERIAL_PRINT_MAYBE(numPackets_);
+        SERIAL_PRINT_MAYBE(F(" packets]"));
     }
     if (!commCommandActive_) {
-        serial_->print(F("(paused)"));
+        SERIAL_PRINT_MAYBE(F("(paused)"));
     }
-    serial_->println();
+    SERIAL_WRITE_MAYBE('\n');
     
     return 0; //TODO
 }
