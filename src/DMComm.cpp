@@ -6,6 +6,7 @@
 #define SERIAL_WRITE_MAYBE(value) if (serial_ != NULL) { serial_->write(value); }
 #define SERIAL_PRINT_MAYBE(value) if (serial_ != NULL) { serial_->print(value); }
 
+static const uint8_t  protocolSymbol[]  PROGMEM = {'V', 'X', 'Y'};
 static const uint8_t  logicHighLevel[]  PROGMEM = {HIGH, HIGH, LOW};
 static const uint8_t  logicLowLevel[]   PROGMEM = {LOW, LOW, HIGH};
 static const uint8_t  invertBitRead[]   PROGMEM = {false, false, true};
@@ -166,13 +167,49 @@ int8_t DMComm::execute(uint8_t command[]) {
 }
 
 int8_t DMComm::doComm() {
-    //TODO (take from after "do it")
-    return 0;
+    beginComm(configIndex_);
+    if (commCommandActive_ && doTick(true) == HIGH) {
+        if (listenOnly_) {
+            //TODO commListen();
+        } else {
+            //TODO commBasic();
+        }
+        if (debugMode_ != DEBUG_OFF) {
+            SERIAL_PRINT_MAYBE(F("p:timing="));
+            SERIAL_WRITE_MAYBE(CONF_BYTE(protocolSymbol));
+            SERIAL_PRINT_MAYBE(F(" threshold="));
+            //TODO Serial.print(dm_times.sensor_threshold);
+            SERIAL_PRINT_MAYBE(F(" trigger="));
+            //TODO serialPrintTrigger();
+            SERIAL_WRITE_MAYBE('\n');
+        }
+        if (debugMode_ == DEBUG_DIGITAL) {
+            SERIAL_PRINT_MAYBE(F("d:"));
+        }
+        if (debugMode_ == DEBUG_ANALOG) {
+            SERIAL_PRINT_MAYBE(F("a:"));
+        }
+        if (debugMode_ != DEBUG_OFF) {
+            for (uint16_t i = 0; i < logSize_; i ++) {
+                //TODO serialPrintHex(logBuf[i], 2);
+                SERIAL_WRITE_MAYBE(' ');
+            }
+            SERIAL_WRITE_MAYBE('\n');
+        }
+        if (goFirst_) {
+            delay(DMCOMM_GOFIRST_REPEAT_MILLIS);
+        }
+    } else {
+        delay(DMCOMM_INACTIVE_DELAY_MILLIS);
+    }
+    return 0; //TODO
 }
 
 void DMComm::beginComm(ToyProtocol protocol) {
-    //TODO
     configIndex_ = protocol;
+    //TODO startLog();
+    //TODO busRelease();
+    //TODO ...
 }
 
 int8_t DMComm::receivePacket(uint32_t timeoutMicros) {
@@ -263,4 +300,8 @@ uint8_t DMComm::readCommand() {
     }
     commandBuffer_[i] = '\0';
     return i;
+}
+
+uint8_t DMComm::doTick(bool first) {
+    return HIGH; //TODO
 }

@@ -6,6 +6,8 @@
 #define DMCOMM_TICK_MICROS 200
 #define DMCOMM_COMMAND_BUFFER_SIZE 64
 #define DMCOMM_SERIAL_TIMEOUT_MILLIS 6000
+#define DMCOMM_GOFIRST_REPEAT_MILLIS 5000
+#define DMCOMM_INACTIVE_DELAY_MILLIS 3000
 
 #define DMCOMM_LOG_PREFIX_LOW    0b00000000
 #define DMCOMM_LOG_PREFIX_HIGH   0b01000000
@@ -213,6 +215,14 @@ private:
      * @return 0 on failure, or a positive integer for the number of characters read.
      */
     uint8_t readCommand();
+    
+    /*
+     * Read analog input and do logging, clocked by tick length.
+     * @param first whether this is the first call of the current communication sequence
+     * (so that we know whether to consider the time passed since the previous call).
+     * @return the current logic level measured.
+     */
+    uint8_t doTick(bool first=false);
 };
 
 #endif /* DMCOMM_H_ */
