@@ -305,3 +305,27 @@ uint8_t DMComm::readCommand() {
 uint8_t DMComm::doTick(bool first) {
     return HIGH; //TODO
 }
+
+void DMComm::ledOn() {
+    digitalWriteMaybe(pinLed_, HIGH);
+}
+
+void DMComm::ledOff() {
+    digitalWriteMaybe(pinLed_, LOW);
+}
+
+void DMComm::busDriveLow() {
+    digitalWriteMaybe(pinOut_, CONF_BYTE(logicLowLevel));
+    digitalWriteMaybe(pinNotOE_, LOW);
+}
+
+void DMComm::busDriveHigh() {
+    digitalWriteMaybe(pinOut_, CONF_BYTE(logicHighLevel));
+    digitalWriteMaybe(pinNotOE_, LOW);
+}
+
+void DMComm::busRelease() {
+    digitalWriteMaybe(pinNotOE_, HIGH);
+    digitalWriteMaybe(pinOut_, CONF_BYTE(logicHighLevel));
+    //pinOut_ is "don't care" on D-Com, but matters for A-Com
+}

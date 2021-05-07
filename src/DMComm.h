@@ -223,6 +223,31 @@ private:
      * @return the current logic level measured.
      */
     uint8_t doTick(bool first=false);
+    
+    /*
+     * Turn the LED on if the pin is set, otherwise do nothing.
+     */
+    void ledOn();
+    
+    /*
+     * Turn the LED off if the pin is set, otherwise do nothing.
+     */
+    void ledOff();
+    
+    /*
+     * Drive the comm bus to logic low, according to the config.
+     */
+    void busDriveLow();
+    
+    /*
+     * Drive the comm bus to logic high, according to the config.
+     */
+    void busDriveHigh();
+    
+    /*
+     * Set the comm bus to listening, according to the config.
+     */
+    void busRelease();
 };
 
 #endif /* DMCOMM_H_ */
