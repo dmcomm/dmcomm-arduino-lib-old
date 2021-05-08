@@ -201,6 +201,8 @@ private:
     Stream *serial_;
     uint8_t *logBuffer_;
     uint16_t logBufferLength_, logSize_;
+    uint32_t logTicksSame_;
+    uint8_t logPacketIndex_, logPrevSensorLevel_;
     ToyProtocol configIndex_;
     uint16_t receivedBits_;
     uint16_t listenTimeoutTicks_, endedCaptureTicks_;
@@ -248,6 +250,38 @@ private:
      * Set the comm bus to listening, according to the config.
      */
     void busRelease();
+    
+    /*
+     * Initialize logging for a new run.
+     */
+    void startLog();
+    
+    /*
+     * Add specified byte to the log.
+     */
+    void addLogByte(uint8_t b);
+    
+    /*
+     * Add current sensor level and time to the log (may be multiple bytes)
+     * and initialize next timing.
+     */
+    void addLogTime();
+    
+    /*
+     * Add specified byte to the log, making sure current timing information is logged first.
+     */
+    void addLogEvent(uint8_t b);
+    
+    /*
+     * Scale ADC reading to 6 bits 0-3.3V, according to the config.
+     */
+    uint8_t scaleSensorValue(uint16_t sensorValue);
+    
+    /*
+     * Delay by specified number of microseconds (with resolution of DMCOMM_TICK_MICROS)
+     * while logging each tick.
+     */
+    void delayByTicks(uint32_t delayMicros);
 };
 
 #endif /* DMCOMM_H_ */

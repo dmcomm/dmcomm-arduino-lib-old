@@ -329,3 +329,59 @@ void DMComm::busRelease() {
     digitalWriteMaybe(pinOut_, CONF_BYTE(logicHighLevel));
     //pinOut_ is "don't care" on D-Com, but matters for A-Com
 }
+
+void DMComm::startLog() {
+    logSize_ = 0;
+    logTicksSame_ = 0;
+    logPacketIndex_ = 0;
+}
+
+void DMComm::addLogByte(uint8_t b) {
+    if (logPacketIndex_ >= debugTrigger_ && logSize_ < logBufferLength_) {
+        logBuffer_[logSize_] = b;
+        logSize_ ++;
+    }
+}
+
+void DMComm::addLogTime() {
+    if (logTicksSame_ == 0) {
+        return;
+    }
+    if (debugMode_ == DEBUG_ANALOG) {
+        addLogByte(logPrevSensorLevel_);
+        logTicksSame_ --;
+    } else {
+        byte logPrefix = (logPrevSensorLevel_ == LOW) ? DMCOMM_LOG_PREFIX_LOW : DMCOMM_LOG_PREFIX_HIGH;
+        addLogByte((logTicksSame_ & DMCOMM_LOG_MAX_COUNT) | logPrefix);
+        logTicksSame_ >>= DMCOMM_LOG_COUNT_BITS;
+    }
+    while (logTicksSame_ > 0) {
+        addLogByte((logTicksSame_ & DMCOMM_LOG_MAX_COUNT) | DMCOMM_LOG_PREFIX_AGAIN);
+        logTicksSame_ >>= DMCOMM_LOG_COUNT_BITS;
+    }
+}
+
+void DMComm::addLogEvent(uint8_t b) {
+    addLogTime();
+    addLogByte(b);
+}
+
+uint8_t DMComm::scaleSensorValue(uint16_t sensorValue) {
+    if (boardVoltage_ == BOARD_3V3) {
+        sensorValue = sensorValue / 16;
+    } else {
+        sensorValue = sensorValue * 3 / 32;
+    }
+    if (sensorValue > 63) {
+        sensorValue = 63;
+    }
+    return (uint8_t)sensorValue;
+}
+
+void DMComm::delayByTicks(uint32_t delayMicros) {
+    uint32_t delayTicks = delayMicros / DMCOMM_TICK_MICROS;
+    uint32_t i;
+    for (i = 0; i < delayTicks; i ++) {
+        doTick();
+    }
+}
