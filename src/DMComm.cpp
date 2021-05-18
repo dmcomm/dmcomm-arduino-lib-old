@@ -207,9 +207,9 @@ int8_t DMComm::doComm() {
 
 void DMComm::beginComm(ToyProtocol protocol) {
     configIndex_ = protocol;
-    //TODO startLog();
-    //TODO busRelease();
-    //TODO ...
+    startLog();
+    busRelease();
+    //TODO checksum?
 }
 
 int8_t DMComm::receivePacket(uint32_t timeoutMicros) {
@@ -223,7 +223,37 @@ uint16_t DMComm::getReceivedBits() {
 }
 
 void DMComm::sendPacket(uint16_t bitsToSend) {
-    //TODO
+    uint8_t i;
+    if (serial_ != NULL) {
+        serial_->print(F("s:"));
+        //TODO serialPrintHex(bitsToSend, 4);
+        serial_->write(' ');
+    }
+    logPacketIndex_ ++;
+    addLogEvent(DMCOMM_LOG_SELF_ENTER_DELAY);
+    delayTicks(CONF_WORD(preHighTicks));
+    
+    addLogEvent(DMCOMM_LOG_SELF_INIT_PULLDOWN);
+    busDriveLow();
+    delayTicks(CONF_WORD(preLowTicks));
+    
+    addLogEvent(DMCOMM_LOG_SELF_START_BIT_HIGH);
+    busDriveHigh();
+    delayTicks(CONF_WORD(startHighTicks));
+    
+    addLogEvent(DMCOMM_LOG_SELF_START_BIT_LOW);
+    busDriveLow();
+    delayTicks(CONF_WORD(startLowTicks));
+    
+    busDriveHigh();
+    for (i = 0; i < 16; i ++) {
+        sendBit(bitsToSend & 1);
+        bitsToSend >>= 1;
+    }
+    delayTicks(CONF_WORD(sendRecoveryTicks));
+    
+    addLogEvent(DMCOMM_LOG_SELF_RELEASE);
+    busRelease();
 }
 
 int8_t DMComm::sendPacket(uint8_t digitsToSend[]) {
@@ -303,7 +333,64 @@ uint8_t DMComm::readCommand() {
 }
 
 uint8_t DMComm::doTick(bool first) {
-    return HIGH; //TODO
+    static unsigned long prevMicros = 0; //same type as micros()
+    static uint16_t ticks = 0;
+    
+    uint16_t sensorValue;
+    uint8_t sensorLevelScaled;
+    uint8_t sensorLevelDigital;
+    uint8_t sensorLevelForLog;
+    uint8_t ticksMissed = 0;
+    
+    sensorValue = analogRead(pinAnalog_);
+    
+    //counts missed ticks for log (but delayTicks does not currently account for them)
+    while (ticksMissed <= DMCOMM_LOG_MAX_TICKS_MISSED && micros() - prevMicros > DMCOMM_TICK_MICROS) {
+        prevMicros += DMCOMM_TICK_MICROS;
+        ticks ++;
+        ticksMissed ++;
+    }
+    if (ticksMissed <= DMCOMM_LOG_MAX_TICKS_MISSED) {
+        while(micros() - prevMicros < DMCOMM_TICK_MICROS);
+        prevMicros += DMCOMM_TICK_MICROS;
+        ticks ++;
+    } else {
+        prevMicros = micros();
+    }
+    if (ticksMissed != 0 && !first) {
+        if (ticksMissed > DMCOMM_LOG_MAX_TICKS_MISSED) {
+            ticksMissed = 0;
+        }
+        addLogEvent(DMCOMM_LOG_PREFIX_TICK_OVERRUN | ticksMissed);
+    }
+    
+    sensorLevelScaled = scaleSensorValue(sensorValue);
+    
+    if (sensorLevelScaled >= CONF_BYTE(sensorThreshold)) {
+        sensorLevelDigital = HIGH;
+    } else {
+        sensorLevelDigital = LOW;
+    }
+    
+    if (debugMode_ == DEBUG_ANALOG) {
+        sensorLevelForLog = sensorLevelScaled;
+    } else {
+        sensorLevelForLog = sensorLevelDigital;
+    }
+    
+    if (sensorLevelForLog != logPrevSensorLevel_) {
+        addLogTime();
+        logTicksSame_ = 1;
+    } else {
+        logTicksSame_ ++;
+    }
+    logPrevSensorLevel_ = sensorLevelForLog;
+    
+    if (sensorLevelDigital == HIGH) {
+        return CONF_BYTE(logicHighLevel);
+    } else {
+        return CONF_BYTE(logicLowLevel);
+    }
 }
 
 void DMComm::ledOn() {
@@ -378,10 +465,17 @@ uint8_t DMComm::scaleSensorValue(uint16_t sensorValue) {
     return (uint8_t)sensorValue;
 }
 
-void DMComm::delayByTicks(uint32_t delayMicros) {
-    uint32_t delayTicks = delayMicros / DMCOMM_TICK_MICROS;
-    uint32_t i;
-    for (i = 0; i < delayTicks; i ++) {
+void DMComm::delayTicks(uint16_t ticks) {
+    uint16_t i;
+    for (i = 0; i < ticks; i ++) {
         doTick();
     }
+}
+
+void DMComm::sendBit(uint16_t bit) {
+    addLogEvent(bit ? DMCOMM_LOG_SELF_SEND_BIT_1 : DMCOMM_LOG_SELF_SEND_BIT_0);
+    delayTicks(bit ? CONF_WORD(bit1HighTicks) : CONF_WORD(bit0HighTicks));
+    busDriveLow();
+    delayTicks(bit ? CONF_WORD(bit1LowTicks) : CONF_WORD(bit0LowTicks));
+    busDriveHigh();
 }

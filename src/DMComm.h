@@ -278,10 +278,16 @@ private:
     uint8_t scaleSensorValue(uint16_t sensorValue);
     
     /*
-     * Delay by specified number of microseconds (with resolution of DMCOMM_TICK_MICROS)
+     * Delay by specified number of ticks (with size DMCOMM_TICK_MICROS)
      * while logging each tick.
      */
-    void delayByTicks(uint32_t delayMicros);
+    void delayTicks(uint16_t ticks);
+    
+    /*
+     * Send one bit (helper for sendBits).
+     * @param bit 0 or 1.
+     */
+    void sendBit(uint16_t bit);
 };
 
 #endif /* DMCOMM_H_ */
