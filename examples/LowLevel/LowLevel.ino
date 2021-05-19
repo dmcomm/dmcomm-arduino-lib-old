@@ -19,11 +19,14 @@ void setup() {
 }
 
 void loop() {
-    //Japanese D-3 trade courage egg (send only)
+    //Japanese D-3 trade courage egg
     dmcomm.beginComm(dmcomm.PROTOCOL_V);
     dmcomm.sendPacket(0x8C0F);
-    delay(200);
-    dmcomm.sendPacket(0x480F);
+    int8_t ret = dmcomm.receivePacket();
+    if (ret == 0) {
+        dmcomm.sendPacket(0x480F);
+        dmcomm.receivePacket();
+    }
     Serial.println();
     delay(10000);
 }

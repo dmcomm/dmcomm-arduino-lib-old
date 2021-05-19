@@ -241,9 +241,65 @@ void DMComm::beginComm(ToyProtocol protocol) {
     //TODO checksum?
 }
 
-int8_t DMComm::receivePacket(uint32_t timeoutMicros) {
-    //TODO
-    receivedBits_ = 0xAAAA;
+int8_t DMComm::receivePacket(uint16_t timeoutTicks) {
+    uint8_t i, r;
+    if (timeoutTicks == 0) {
+        timeoutTicks = CONF_WORD(timeoutReplyTicks);
+    }
+    addLogEvent(DMCOMM_LOG_OPP_ENTER_WAIT);
+    if (busWait(LOW, timeoutTicks)) {
+        addLogEvent(DMCOMM_LOG_OPP_EXIT_FAIL);
+        SERIAL_PRINT_MAYBE(F("t "));
+        return -4;
+    }
+    logPacketIndex_ ++;
+    addLogEvent(DMCOMM_LOG_OPP_INIT_PULLDOWN);
+    if (busWait(HIGH, CONF_WORD(timeoutBitsTicks))) {
+        addLogEvent(DMCOMM_LOG_OPP_EXIT_FAIL);
+        SERIAL_PRINT_MAYBE(F("t:-3 "));
+        return -3;
+    }
+    addLogEvent(DMCOMM_LOG_OPP_START_BIT_HIGH);
+    if (busWait(LOW, CONF_WORD(timeoutBitTicks))) {
+        addLogEvent(DMCOMM_LOG_OPP_EXIT_FAIL);
+        SERIAL_PRINT_MAYBE(F("t:-2 "));
+        return -2;
+    }
+    addLogEvent(DMCOMM_LOG_OPP_START_BIT_LOW);
+    if (busWait(HIGH, CONF_WORD(timeoutBitTicks))) {
+        addLogEvent(DMCOMM_LOG_OPP_EXIT_FAIL);
+        SERIAL_PRINT_MAYBE(F("t:-1 "));
+        return -1;
+    }
+    addLogEvent(DMCOMM_LOG_OPP_BITS_BEGIN_HIGH);
+    for (i = 0; i < 16; i ++) {
+        r = receiveBit();
+        if (r == 2 && i == 15) {
+            //opp didn't release at end of packet
+            SERIAL_PRINT_MAYBE(F("r:"));
+            serialPrintHex(receivedBits_, 4);
+            SERIAL_PRINT_MAYBE(F("t "));
+            addLogEvent(DMCOMM_LOG_OPP_EXIT_FAIL);
+            return 16;
+        } else if (r != 0) {
+            //packet failed
+            r = i + r - 1; //number of bits received
+            receivedBits_ >>= (16-r);
+            if (serial_ != NULL) {
+                serial_->print(F("t:"));
+                serial_->print(i, DEC);
+                serial_->write(':');
+                serialPrintHex(receivedBits_, 4);
+                serial_->write(' ');
+            }
+            addLogEvent(DMCOMM_LOG_OPP_EXIT_FAIL);
+            return r;
+        }
+    }
+    SERIAL_PRINT_MAYBE(F("r:"));
+    serialPrintHex(receivedBits_, 4);
+    SERIAL_WRITE_MAYBE(' ');
+    addLogEvent(DMCOMM_LOG_OPP_EXIT_OK);
     return 0;
 }
 
@@ -526,4 +582,46 @@ void DMComm::sendBit(uint16_t bit) {
     busDriveLow();
     delayTicks(bit ? CONF_WORD(bit1LowTicks) : CONF_WORD(bit0LowTicks));
     busDriveHigh();
+}
+
+uint16_t DMComm::busWaitTimed(uint8_t level, uint16_t timeoutTicks) {
+    uint16_t ticksPassed = 0;
+    uint8_t logicLevel;
+    do {
+        logicLevel = doTick();
+        ticksPassed ++;
+    } while (logicLevel != level && ticksPassed <= timeoutTicks);
+    return ticksPassed;
+}
+
+bool DMComm::busWait(uint8_t level, uint16_t timeoutTicks) {
+    uint16_t ticksPassed = busWaitTimed(level, timeoutTicks);
+    return (ticksPassed > timeoutTicks);
+}
+
+uint8_t DMComm::receiveBit() {
+    uint16_t ticksPassed;
+    uint16_t timeoutTicks = CONF_WORD(timeoutBitTicks);
+    bool bit0 = false;
+    ticksPassed = busWaitTimed(LOW, timeoutTicks);
+    if (ticksPassed > timeoutTicks) {
+        return 1;
+    }
+    if (ticksPassed > CONF_WORD(bit1HighMinTicks)) {
+        bit0 = true;
+    }
+    if (CONF_BYTE(invertBitRead)) {
+        bit0 = !bit0;
+    }
+    receivedBits_ >>= 1;
+    if (bit0) {
+        addLogEvent(DMCOMM_LOG_OPP_GOT_BIT_1);
+        receivedBits_ |= 0x8000;
+    } else {
+        addLogEvent(DMCOMM_LOG_OPP_GOT_BIT_0);
+    }
+    if (busWait(HIGH, timeoutTicks)) {
+        return 2;
+    }
+    return 0;
 }

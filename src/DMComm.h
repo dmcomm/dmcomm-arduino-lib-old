@@ -110,11 +110,12 @@ public:
     
     /**
      * Receive a single packet and store the resulting bits.
-     * @param timeoutMicros the number of microseconds to wait for the packet.
+     * @param timeoutTicks the number of ticks to wait for the packet (length DMCOMM_TICK_MICROS).
+     * If 0 (default), wait the appropriate time for a reply.
      * @return 0 if successful; positive for the number of bits received before failure;
      * negative for failures at different stages before receiving any bits.
      */
-    int8_t receivePacket(uint32_t timeoutMicros);
+    int8_t receivePacket(uint16_t timeoutTicks=0);
     
     /**
      * Get the bits from the most recent receive attempt.
@@ -296,6 +297,24 @@ private:
      * @param bit 0 or 1.
      */
     void sendBit(uint16_t bit);
+    
+    /*
+     * Wait until measured input equals level, or timeout in ticks.
+     * @return the time taken in ticks.
+     */
+    uint16_t busWaitTimed(uint8_t level, uint16_t timeoutTicks);
+    
+    /*
+     * Wait until measured input equals level, or timeout in ticks.
+     * @return true if timeout was reached, false otherwise.
+     */
+    bool busWait(uint8_t level, uint16_t timeoutTicks);
+    
+    /*
+     * Receive one bit, and rotate into `receivedBits_` from the left.
+     * @return 0 on success, 1 on bit error, 2 on error after receiving bit.
+     */
+    uint8_t receiveBit();
 };
 
 #endif /* DMCOMM_H_ */
