@@ -24,5 +24,6 @@ void loop() {
     dmcomm.sendPacket(0x8C0F);
     delay(200);
     dmcomm.sendPacket(0x480F);
+    Serial.println();
     delay(10000);
 }

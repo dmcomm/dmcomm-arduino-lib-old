@@ -211,6 +211,14 @@ private:
     uint8_t commandBuffer_[DMCOMM_COMMAND_BUFFER_SIZE];
     
     /*
+     * Print number onto serial as hex,
+     * with specified number of digits up to 4 (with leading zeros).
+     * If too few digits to display that number, will take the least significant.
+     * (Does nothing if no serial is set.)
+     */
+    void serialPrintHex(uint16_t number, uint8_t numDigits);
+    
+    /*
      * Try to read from serial into command buffer.
      * Read until end-of-line and replace that with a null terminator.
      * Should only be called if serial is present.

@@ -37,6 +37,35 @@ static void digitalWriteMaybe(uint8_t pin, uint8_t val) {
     }
 }
 
+/*
+ * Return integer value of hex digit character, or -1 if not a hex digit.
+ */
+static int8_t hex2val(int8_t hexdigit) {
+    int8_t value;
+    if (hexdigit >= '0' && hexdigit <= '9') {
+        value = hexdigit - 0x30;
+    } else if (hexdigit >= 'a' && hexdigit <= 'f') {
+        value = hexdigit - 0x57;
+    } else if (hexdigit >= 'A' && hexdigit <= 'F') {
+        value = hexdigit - 0x37;
+    } else {
+        value = -1;
+    }
+    return value;
+}
+
+/*
+ * Return hex digit character for lowest 4 bits of input byte.
+ */
+static int8_t val2hex(int8_t value) {
+    value &= 0xF;
+    if (value > 9) {
+        return value + 0x37;
+    } else {
+        return value + 0x30;
+    }
+}
+
 DMComm::DMComm(uint8_t pinAnalog, uint8_t pinOut, uint8_t pinNotOE) :
     pinAnalog_(pinAnalog), pinOut_(pinOut), pinNotOE_(pinNotOE), pinLed_(DMCOMM_NO_PIN),
     boardVoltage_(BOARD_5V), readResolution_(10), debugMode_(DEBUG_OFF), debugTrigger_(0),
@@ -191,7 +220,7 @@ int8_t DMComm::doComm() {
         }
         if (debugMode_ != DEBUG_OFF) {
             for (uint16_t i = 0; i < logSize_; i ++) {
-                //TODO serialPrintHex(logBuf[i], 2);
+                serialPrintHex(logBuffer_[i], 2);
                 SERIAL_WRITE_MAYBE(' ');
             }
             SERIAL_WRITE_MAYBE('\n');
@@ -226,7 +255,7 @@ void DMComm::sendPacket(uint16_t bitsToSend) {
     uint8_t i;
     if (serial_ != NULL) {
         serial_->print(F("s:"));
-        //TODO serialPrintHex(bitsToSend, 4);
+        serialPrintHex(bitsToSend, 4);
         serial_->write(' ');
     }
     logPacketIndex_ ++;
@@ -297,6 +326,25 @@ void DMComm::configureAnalog(BoardVoltage boardVoltage, uint8_t readResolution) 
     readResolution_ = readResolution;
 }
 
+
+void DMComm::serialPrintHex(uint16_t number, uint8_t numDigits) {
+    const uint8_t maxDigits = 4;
+    int8_t i;
+    int8_t digits[maxDigits];
+    if (serial_ == NULL) {
+        return;
+    }
+    if (numDigits > maxDigits) {
+        numDigits = maxDigits;
+    }
+    for (i = 0; i < numDigits; i ++) {
+        digits[i] = val2hex((byte)number);
+        number /= 0x10;
+    }
+    for (i = numDigits - 1; i >= 0; i --) {
+        serial_->write(digits[i]);
+    }
+}
 
 uint8_t DMComm::readCommand() {
     unsigned long timeStart; //same type as millis()
