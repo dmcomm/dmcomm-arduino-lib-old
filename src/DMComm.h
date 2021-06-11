@@ -315,6 +315,17 @@ private:
      * @return 0 on success, 1 on bit error, 2 on error after receiving bit.
      */
     uint8_t receiveBit();
+    
+    /*
+     * Just listen for sequences of incoming messages,
+     * e.g. if only the first packet is wanted, or listening to 2 toys.
+     */
+    void commListen();
+    
+    /*
+     * Interact with the toy on the other end of the connection.
+     */
+    void commBasic();
 };
 
 #endif /* DMCOMM_H_ */
