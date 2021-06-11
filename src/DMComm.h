@@ -208,7 +208,7 @@ private:
     uint16_t receivedBits_;
     uint16_t listenTimeoutTicks_, endedCaptureTicks_;
     bool commCommandActive_, listenOnly_, goFirst_;
-    uint8_t numPackets_;
+    uint8_t numPackets_, checksum_;
     uint8_t commandBuffer_[DMCOMM_COMMAND_BUFFER_SIZE];
     
     /*

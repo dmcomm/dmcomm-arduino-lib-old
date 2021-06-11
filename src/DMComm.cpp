@@ -66,82 +66,6 @@ static int8_t val2hex(int8_t value) {
     }
 }
 
-/*
- * Read next packet from buffer; write bits to send into bitsNew and update checksum.
- * @param bitsRcvd the packet just received (ignored except with ^ token).
- * @return number of bytes read from buffer on success, 0 if empty, -1 on failure.
- */
-static int8_t makePacket(uint16_t * bitsNew, int8_t * checksum, uint16_t bitsRcvd, byte * buffer) {
-    int8_t digits[4];
-    int8_t dCur;
-    int8_t dCurChk = -1;
-    int8_t chkTarget = -1;
-    int8_t bufCur = 1;
-    uint8_t b1, b2;
-    int8_t val1, val2;
-    if (buffer[0] == '\0') {
-        return 0;
-    }
-    //require first character dash
-    if (buffer[0] != '-') {
-        return -1;
-    }
-    //unpack bitsRcvd into digits
-    for (dCur = 3; dCur >= 0; dCur --) {
-        digits[dCur] = bitsRcvd & 0xF;
-        bitsRcvd >>= 4;
-    }
-    for (dCur = 0; dCur < 4; dCur ++) {
-        b1 = buffer[bufCur];
-        if (b1 == '\0') {
-            return -1;
-        }
-        bufCur ++;
-        b2 = buffer[bufCur];
-        val1 = hex2val(b1);
-        val2 = hex2val(b2);
-        if (b1 == '@' || b1 == '^') {
-            //expect a hex digit to follow
-            if (val2 == -1) {
-                return -1;
-            }
-            if (b1 == '@') {
-                //here is check digit
-                dCurChk = dCur;
-                chkTarget = val2;
-            } else {
-                //xor received bits with new value
-                digits[dCur] ^= val2;
-            }
-            bufCur ++; //extra digit taken
-        } else {
-            //expect this to be a hex digit
-            if (val1 == -1) {
-                return -1;
-            }
-            //store (overwrite) digit
-            digits[dCur] = val1;
-        }
-        if (b1 != '@') {
-            //update checksum
-            (*checksum) += digits[dCur];
-            (*checksum) &= 0xF;
-        }
-    }
-    if (dCurChk != -1) {
-        //we have a check digit
-        digits[dCurChk] = (chkTarget - (*checksum)) & 0xF;
-        (*checksum) = chkTarget;
-    }
-    //pack digits into bitsNew
-    (*bitsNew) = 0;
-    for (dCur = 0; dCur < 4; dCur ++) {
-        (*bitsNew) <<= 4;
-        (*bitsNew) |= digits[dCur];
-    }
-    return bufCur;
-}
-
 DMComm::DMComm(uint8_t pinAnalog, uint8_t pinOut, uint8_t pinNotOE) :
     pinAnalog_(pinAnalog), pinOut_(pinOut), pinNotOE_(pinNotOE), pinLed_(DMCOMM_NO_PIN),
     boardVoltage_(BOARD_5V), readResolution_(10), debugMode_(DEBUG_OFF), debugTrigger_(0),
@@ -184,6 +108,7 @@ void DMComm::loop() {
 }
 
 int8_t DMComm::execute(uint8_t command[]) {
+    //TODO fix handling of parameter
     uint8_t i = 0;
     while (commandBuffer_[i] != '\0') {
         i ++;
@@ -314,7 +239,8 @@ void DMComm::beginComm(ToyProtocol protocol) {
     configIndex_ = protocol;
     startLog();
     busRelease();
-    //TODO checksum?
+    receivedBits_ = 0;
+    checksum_ = 0;
 }
 
 int8_t DMComm::receivePacket(uint16_t timeoutTicks) {
@@ -418,8 +344,77 @@ void DMComm::sendPacket(uint16_t bitsToSend) {
 }
 
 int8_t DMComm::sendPacket(uint8_t digitsToSend[]) {
-    //TODO replace makePacket
-    return 0;
+    uint16_t bitsToSend;
+    uint16_t receivedBits = receivedBits_;
+    int8_t digits[4];
+    int8_t dCur;
+    int8_t dCurChk = -1;
+    int8_t chkTarget = -1;
+    int8_t bufCur = 1;
+    uint8_t b1, b2;
+    int8_t val1, val2;
+    if (digitsToSend[0] == '\0') {
+        return 0;
+    }
+    //require first character dash
+    if (digitsToSend[0] != '-') {
+        return -1;
+    }
+    //unpack bits received into digits
+    for (dCur = 3; dCur >= 0; dCur --) {
+        digits[dCur] = receivedBits & 0xF;
+        receivedBits >>= 4;
+    }
+    for (dCur = 0; dCur < 4; dCur ++) {
+        b1 = digitsToSend[bufCur];
+        if (b1 == '\0') {
+            return -1;
+        }
+        bufCur ++;
+        b2 = digitsToSend[bufCur];
+        val1 = hex2val(b1);
+        val2 = hex2val(b2);
+        if (b1 == '@' || b1 == '^') {
+            //expect a hex digit to follow
+            if (val2 == -1) {
+                return -1;
+            }
+            if (b1 == '@') {
+                //here is check digit
+                dCurChk = dCur;
+                chkTarget = val2;
+            } else {
+                //xor received bits with new value
+                digits[dCur] ^= val2;
+            }
+            bufCur ++; //extra digit taken
+        } else {
+            //expect this to be a hex digit
+            if (val1 == -1) {
+                return -1;
+            }
+            //store (overwrite) digit
+            digits[dCur] = val1;
+        }
+        if (b1 != '@') {
+            //update checksum
+            checksum_ += digits[dCur];
+            checksum_ &= 0xF;
+        }
+    }
+    if (dCurChk != -1) {
+        //we have a check digit
+        digits[dCurChk] = (chkTarget - checksum_) & 0xF;
+        checksum_ = chkTarget;
+    }
+    //pack digits into bitsToSend
+    bitsToSend = 0;
+    for (dCur = 0; dCur < 4; dCur ++) {
+        bitsToSend <<= 4;
+        bitsToSend |= digits[dCur];
+    }
+    sendPacket(bitsToSend);
+    return bufCur;
 }
 
 void DMComm::setPinLed(uint8_t pinLed) {
@@ -717,8 +712,6 @@ void DMComm::commListen() {
 }
 
 void DMComm::commBasic() {
-    uint16_t bitsToSend = 0;
-    int8_t checksum = 0;
     int8_t bufCur = 2;
     int8_t result;
     if (!goFirst_) {
@@ -729,7 +722,7 @@ void DMComm::commBasic() {
     }
     ledOff();
     while (1) {
-        result = makePacket(&bitsToSend, &checksum, receivedBits_, commandBuffer_ + bufCur);
+        result = sendPacket(commandBuffer_ + bufCur);
         if (result == 0) {
             //the end
             break;
@@ -740,7 +733,6 @@ void DMComm::commBasic() {
             break;
         }
         bufCur += result;
-        sendPacket(bitsToSend);
         if (receivePacket(0)) {
             break;
         }
