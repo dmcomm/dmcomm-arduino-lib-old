@@ -67,12 +67,7 @@ static int8_t val2hex(int8_t value) {
 }
 
 DMComm::DMComm(uint8_t pinAnalog, uint8_t pinOut, uint8_t pinNotOE) :
-    pinAnalog_(pinAnalog), pinOut_(pinOut), pinNotOE_(pinNotOE), pinLed_(DMCOMM_NO_PIN),
-    boardVoltage_(BOARD_5V), readResolution_(10), debugMode_(DEBUG_OFF), debugTrigger_(0),
-    serial_(NULL), logBuffer_(NULL), logBufferLength_(0), logSize_(0),
-    configIndex_(PROTOCOL_V), receivedBits_(0),
-    listenTimeoutTicks_(15000), endedCaptureTicks_(2500),
-    commCommandActive_(false)
+    pinAnalog_(pinAnalog), pinOut_(pinOut), pinNotOE_(pinNotOE)
 {}
 
 DMComm::~DMComm() {

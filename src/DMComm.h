@@ -194,21 +194,30 @@ public:
     
 private:
     
-    uint8_t pinAnalog_, pinOut_, pinNotOE_, pinLed_;
-    BoardVoltage boardVoltage_;
-    uint8_t readResolution_;
-    DebugMode debugMode_;
-    uint8_t debugTrigger_;
-    Stream *serial_;
-    uint8_t *logBuffer_;
-    uint16_t logBufferLength_, logSize_;
+    uint8_t pinAnalog_ = DMCOMM_NO_PIN;
+    uint8_t pinOut_ = DMCOMM_NO_PIN;
+    uint8_t pinNotOE_ = DMCOMM_NO_PIN;
+    uint8_t pinLed_ = DMCOMM_NO_PIN;
+    BoardVoltage boardVoltage_ = BOARD_5V;
+    uint8_t readResolution_ = 10;
+    DebugMode debugMode_ = DEBUG_OFF;
+    uint8_t debugTrigger_ = 0;
+    Stream *serial_ = nullptr;
+    uint8_t *logBuffer_ = nullptr;
+    uint16_t logBufferLength_ = 0;
+    uint16_t logSize_ = 0;
     uint32_t logTicksSame_;
-    uint8_t logPacketIndex_, logPrevSensorLevel_;
-    ToyProtocol configIndex_;
-    uint16_t receivedBits_;
-    uint16_t listenTimeoutTicks_, endedCaptureTicks_;
-    bool commCommandActive_, listenOnly_, goFirst_;
-    uint8_t numPackets_, checksum_;
+    uint8_t logPacketIndex_;
+    uint8_t logPrevSensorLevel_;
+    ToyProtocol configIndex_ = PROTOCOL_V;
+    uint16_t receivedBits_ = 0;
+    uint16_t listenTimeoutTicks_ = 15000;
+    uint16_t endedCaptureTicks_ = 2500;
+    bool commCommandActive_ = false;
+    bool listenOnly_;
+    bool goFirst_;
+    uint8_t numPackets_;
+    uint8_t checksum_;
     uint8_t commandBuffer_[DMCOMM_COMMAND_BUFFER_SIZE];
     
     /*
