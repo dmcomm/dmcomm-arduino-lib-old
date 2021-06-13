@@ -36,38 +36,46 @@
 #define DMCOMM_LOG_SELF_SEND_BIT_1     0xE6
 #define DMCOMM_LOG_SELF_RELEASE        0xE7
 
-class DMComm {
+namespace DMComm {
+
+/**
+ * The board voltage. Fast division is used, so only pre-programmed voltages are available.
+ */
+enum BoardVoltage {BOARD_5V, BOARD_3V3};
+
+/**
+ * The debug mode: off, digital or analog.
+ */
+enum DebugMode {DEBUG_OFF, DEBUG_DIGITAL, DEBUG_ANALOG};
+
+/**
+ * The low-level protocol for communicating with the toy.
+ * V for 2-prong, X for 3-prong, Y for Xros Mini.
+ */
+enum ToyProtocol {PROTOCOL_V = 0, PROTOCOL_X = 1, PROTOCOL_Y = 2};
+
+
+class DComAnalog {
 
 public:
     /**
-     * The board voltage. Fast division is used, so only pre-programmed voltages are available.
-     */
-    enum BoardVoltage {BOARD_5V, BOARD_3V3};
-    
-    /**
-      * The debug mode: off, digital or analog.
-      */
-    enum DebugMode {DEBUG_OFF, DEBUG_DIGITAL, DEBUG_ANALOG};
-    
-    /**
-     * The low-level protocol for communicating with the toy.
-     * V for 2-prong, X for 3-prong, Y for Xros Mini.
-     */
-    enum ToyProtocol {PROTOCOL_V = 0, PROTOCOL_X = 1, PROTOCOL_Y = 2};
-    
-    /**
      * Create the object, taking no action on the hardware.
+     * The analog input needs to be configured to read values of the correct size.
+     * @param boardVoltage see BoardVoltage.
+     * @param readResolution should be 10 or more, matching the value set with analogReadResolution().
+     * Normally 10, but note that ESP32 defaults to 12 bits.
      * @param pinAnalog the pin number for the analog input.
      * @param pinOut the pin number for the main output.
      * @param pinNotOE the pin number for notOE (to include D-Com support).
      * Use DMCOMM_NO_PIN (default) to disable (for A-Com support only).
      */
-    DMComm(uint8_t pinAnalog, uint8_t pinOut, uint8_t pinNotOE=DMCOMM_NO_PIN);
+    DComAnalog(BoardVoltage boardVoltage, uint8_t readResolution,
+        uint8_t pinAnalog, uint8_t pinOut, uint8_t pinNotOE=DMCOMM_NO_PIN);
     
     /**
      * Destructor.
      */
-    ~DMComm();
+    ~DComAnalog();
     
     /**
      * Configure the pins for use.
@@ -75,35 +83,12 @@ public:
     void begin();
     
     /**
-     * Does this need to do anything?
+     * Currently does nothing.
      */
     void end();
     
     /**
-     * Do one iteration of checking the serial for instructions and carrying them out.
-     * (Does nothing if no serial is set.)
-     */
-    void loop();
-    
-    /**
-     * Carry out the command specified. See the serial codes documentation for details.
-     * Communication pattern codes configure the system to prepare for calling `doComm`.
-     * Config codes are executed immmediately.
-     * @param command a null-terminated byte string containing the command.
-     * @return (not decided yet).
-     */
-    int8_t execute(uint8_t command[]);
-    
-    /**
-     * Communicate with the toy as specified by the communication pattern code passed to
-     * the most recent call of `execute`.
-     * @return (not decided yet).
-     */
-    int8_t doComm();
-    
-    /**
-     * Reset the system before starting a communication sequence using the single-packet functions.
-     * This is not required with the `execute` function.
+     * Reset the system before starting a communication sequence.
      * @param protocol see ToyProtocol.
      */
     void beginComm(ToyProtocol protocol);
@@ -139,16 +124,11 @@ public:
      */
     int8_t sendPacket(uint8_t digitsToSend[]);
     
-    /**
-     * Set a pin for LED output. Initially DMCOMM_NO_PIN, which disables it.
+    /*
+     * Delay by specified number of ticks (with size DMCOMM_TICK_MICROS)
+     * while logging each tick.
      */
-    void setPinLed(uint8_t pinLed);
-    
-    /**
-      * Specify the serial port for the loop function and for reporting results.
-      * If this is not done, the loop function will do nothing and no results will be reported.
-      */
-    void setSerial(Stream& serial);
+    void delayTicks(uint16_t ticks);
     
     /**
      * Provide a buffer for storing the debug log. If this is not done, no logging will occur.
@@ -183,26 +163,16 @@ public:
      */
     uint16_t getLogSize();
     
-    /**
-     * Configure the analog input to read values of the correct size.
-     * Initially 5V with 10 bits, suitable for 5V AVR-based boards.
-     * @param boardVoltage see BoardVoltage.
-     * @param readResolution should be 10 or more, matching the value set with analogReadResolution().
-     * Note that ESP32 defaults to 12 bits.
-     */
-    void configureAnalog(BoardVoltage boardVoltage, uint8_t readResolution);
-    
 private:
     
+    BoardVoltage boardVoltage_ = BOARD_5V;
+    uint8_t readResolution_ = 10;
     uint8_t pinAnalog_ = DMCOMM_NO_PIN;
     uint8_t pinOut_ = DMCOMM_NO_PIN;
     uint8_t pinNotOE_ = DMCOMM_NO_PIN;
-    uint8_t pinLed_ = DMCOMM_NO_PIN;
-    BoardVoltage boardVoltage_ = BOARD_5V;
-    uint8_t readResolution_ = 10;
     DebugMode debugMode_ = DEBUG_OFF;
     uint8_t debugTrigger_ = 0;
-    Stream *serial_ = nullptr;
+    Stream *serial_ = nullptr; //probably going to get rid of this
     uint8_t *logBuffer_ = nullptr;
     uint16_t logBufferLength_ = 0;
     uint16_t logSize_ = 0;
@@ -211,30 +181,7 @@ private:
     uint8_t logPrevSensorLevel_;
     ToyProtocol configIndex_ = PROTOCOL_V;
     uint16_t receivedBits_ = 0;
-    uint16_t listenTimeoutTicks_ = 15000;
-    uint16_t endedCaptureTicks_ = 2500;
-    bool commCommandActive_ = false;
-    bool listenOnly_;
-    bool goFirst_;
-    uint8_t numPackets_;
     uint8_t checksum_;
-    uint8_t commandBuffer_[DMCOMM_COMMAND_BUFFER_SIZE];
-    
-    /*
-     * Print number onto serial as hex,
-     * with specified number of digits up to 4 (with leading zeros).
-     * If too few digits to display that number, will take the least significant.
-     * (Does nothing if no serial is set.)
-     */
-    void serialPrintHex(uint16_t number, uint8_t numDigits);
-    
-    /*
-     * Try to read from serial into command buffer.
-     * Read until end-of-line and replace that with a null terminator.
-     * Should only be called if serial is present.
-     * @return 0 on failure, or a positive integer for the number of characters read.
-     */
-    uint8_t readCommand();
     
     /*
      * Read analog input and do logging, clocked by tick length.
@@ -243,16 +190,6 @@ private:
      * @return the current logic level measured.
      */
     uint8_t doTick(bool first=false);
-    
-    /*
-     * Turn the LED on if the pin is set, otherwise do nothing.
-     */
-    void ledOn();
-    
-    /*
-     * Turn the LED off if the pin is set, otherwise do nothing.
-     */
-    void ledOff();
     
     /*
      * Drive the comm bus to logic low, according to the config.
@@ -296,12 +233,6 @@ private:
     uint8_t scaleSensorValue(uint16_t sensorValue);
     
     /*
-     * Delay by specified number of ticks (with size DMCOMM_TICK_MICROS)
-     * while logging each tick.
-     */
-    void delayTicks(uint16_t ticks);
-    
-    /*
      * Send one bit (helper for sendBits).
      * @param bit 0 or 1.
      */
@@ -324,6 +255,94 @@ private:
      * @return 0 on success, 1 on bit error, 2 on error after receiving bit.
      */
     uint8_t receiveBit();
+};
+
+
+class Controller {
+
+public:
+    /**
+     *
+     */
+    Controller(DComAnalog& prongInterface);
+    
+    /**
+     * Destructor.
+     */
+    ~Controller();
+    
+    /**
+     * Do one iteration of checking the serial for instructions and carrying them out.
+     * (Does nothing if no serial is set.)
+     */
+    void loop();
+    
+    /**
+     * Carry out the command specified. See the serial codes documentation for details.
+     * Communication pattern codes configure the system to prepare for calling `doComm`.
+     * Config codes are executed immmediately.
+     * @param command a null-terminated byte string containing the command.
+     * @return (not decided yet).
+     */
+    int8_t execute(uint8_t command[]);
+    
+    /**
+     * Communicate with the toy as specified by the communication pattern code passed to
+     * the most recent call of `execute`.
+     * @return (not decided yet).
+     */
+    int8_t doComm();
+    
+    /**
+     * Set a pin for LED output. Initially DMCOMM_NO_PIN, which disables it.
+     */
+    void setPinLed(uint8_t pinLed);
+    
+    /**
+      * Specify the serial port for the loop function and for reporting results.
+      * If this is not done, the loop function will do nothing and no results will be reported.
+      */
+    void setSerial(Stream& serial);
+    
+private:
+    
+    DComAnalog *prongInterface_ = nullptr;
+    Stream *serial_ = nullptr;
+    ToyProtocol configIndex_ = PROTOCOL_V;
+    uint8_t pinLed_ = DMCOMM_NO_PIN;
+    uint16_t listenTimeoutTicks_ = 15000;
+    uint16_t endedCaptureTicks_ = 2500;
+    bool commCommandActive_ = false;
+    bool listenOnly_;
+    bool goFirst_;
+    uint8_t numPackets_;
+    uint8_t commandBuffer_[DMCOMM_COMMAND_BUFFER_SIZE];
+    
+    /*
+     * Print number onto serial as hex,
+     * with specified number of digits up to 4 (with leading zeros).
+     * If too few digits to display that number, will take the least significant.
+     * (Does nothing if no serial is set.)
+     */
+    void serialPrintHex(uint16_t number, uint8_t numDigits);
+    
+    /*
+     * Try to read from serial into command buffer.
+     * Read until end-of-line and replace that with a null terminator.
+     * Should only be called if serial is present.
+     * @return 0 on failure, or a positive integer for the number of characters read.
+     */
+    uint8_t readCommand();
+    
+    /*
+     * Turn the LED on if the pin is set, otherwise do nothing.
+     */
+    void ledOn();
+    
+    /*
+     * Turn the LED off if the pin is set, otherwise do nothing.
+     */
+    void ledOff();
     
     /*
      * Just listen for sequences of incoming messages,
@@ -336,5 +355,7 @@ private:
      */
     void commBasic();
 };
+
+}
 
 #endif /* DMCOMM_H_ */

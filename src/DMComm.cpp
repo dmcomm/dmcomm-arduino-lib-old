@@ -6,6 +6,8 @@
 #define SERIAL_WRITE_MAYBE(value) if (serial_ != NULL) { serial_->write(value); }
 #define SERIAL_PRINT_MAYBE(value) if (serial_ != NULL) { serial_->print(value); }
 
+namespace DMComm {
+
 static const uint8_t  protocolSymbol[]  PROGMEM = {'V', 'X', 'Y'};
 static const uint8_t  logicHighLevel[]  PROGMEM = {HIGH, HIGH, LOW};
 static const uint8_t  logicLowLevel[]   PROGMEM = {LOW, LOW, HIGH};
@@ -66,26 +68,31 @@ static int8_t val2hex(int8_t value) {
     }
 }
 
-DMComm::DMComm(uint8_t pinAnalog, uint8_t pinOut, uint8_t pinNotOE) :
+Controller::Controller(DComAnalog& prongInterface) : prongInterface_(&prongInterface)
+{}
+
+Controller::~Controller() {}
+
+DComAnalog::DComAnalog(BoardVoltage boardVoltage, uint8_t readResolution,
+        uint8_t pinAnalog, uint8_t pinOut, uint8_t pinNotOE) :
+    boardVoltage_(boardVoltage), readResolution_(readResolution),
     pinAnalog_(pinAnalog), pinOut_(pinOut), pinNotOE_(pinNotOE)
 {}
 
-DMComm::~DMComm() {
+DComAnalog::~DComAnalog() {
     end();
 }
 
-void DMComm::begin() {
+void DComAnalog::begin() {
     pinMode(pinAnalog_, INPUT);
     pinModeMaybe(pinOut_, OUTPUT);
     pinModeMaybe(pinNotOE_, OUTPUT);
-    pinModeMaybe(pinLed_, OUTPUT);
-    
 }
 
-void DMComm::end() {
+void DComAnalog::end() {
 }
 
-void DMComm::loop() {
+void Controller::loop() {
     if (serial_ == NULL) {
         return;
     }
@@ -102,7 +109,7 @@ void DMComm::loop() {
     doComm();
 }
 
-int8_t DMComm::execute(uint8_t command[]) {
+int8_t Controller::execute(uint8_t command[]) {
     //TODO fix handling of parameter
     uint8_t i = 0;
     while (commandBuffer_[i] != '\0') {
@@ -115,24 +122,24 @@ int8_t DMComm::execute(uint8_t command[]) {
     if ((commandBuffer_[0] == 'd' || commandBuffer_[0] == 'D') && i >= 2) {
         if (commandBuffer_[1] == '0' || commandBuffer_[1] == 'o' || commandBuffer_[1] == 'O') {
             SERIAL_PRINT_MAYBE(F("debug off "));
-            debugMode_ = DEBUG_OFF;
+            //TODO debugMode_ = DEBUG_OFF;
         } else if (commandBuffer_[1] == '1' || commandBuffer_[1] == 'd' || commandBuffer_[1] == 'D') {
             SERIAL_PRINT_MAYBE(F("debug digital "));
-            debugMode_ = DEBUG_DIGITAL;
+            //TODO debugMode_ = DEBUG_DIGITAL;
         } else if (commandBuffer_[1] == '2' || commandBuffer_[1] == 'a' || commandBuffer_[1] == 'A') {
             SERIAL_PRINT_MAYBE(F("debug analog "));
-            debugMode_ = DEBUG_ANALOG;
+            //TODO debugMode_ = DEBUG_ANALOG;
         }
         if (i >= 5 && commandBuffer_[2] == '-') {
             //TODO setupTrigger(commandBuffer_[3], commandBuffer_[4]);
         } else {
             //TODO setupTrigger(' ', ' ');
         }
-        if (debugMode_ != DEBUG_OFF) {
+        /*TODO if (debugMode_ != DEBUG_OFF) {
             SERIAL_PRINT_MAYBE(F("trigger="));
             //TODO serialPrintTrigger();
             SERIAL_WRITE_MAYBE(' ');
-        }
+        }*/
     }
     commCommandActive_ = true;
     if (commandBuffer_[0] == 'v' || commandBuffer_[0] == 'V') {
@@ -191,15 +198,15 @@ int8_t DMComm::execute(uint8_t command[]) {
     return 0; //TODO
 }
 
-int8_t DMComm::doComm() {
-    beginComm(configIndex_);
-    if (commCommandActive_ && doTick(true) == HIGH) {
+int8_t Controller::doComm() {
+    prongInterface_->beginComm(configIndex_);
+    if (commCommandActive_) { //TODO && doTick(true) == HIGH
         if (listenOnly_) {
             commListen();
         } else {
             commBasic();
         }
-        if (debugMode_ != DEBUG_OFF) {
+        /*TODO if (debugMode_ != DEBUG_OFF) {
             SERIAL_PRINT_MAYBE(F("p:timing="));
             SERIAL_WRITE_MAYBE(CONF_BYTE(protocolSymbol));
             SERIAL_PRINT_MAYBE(F(" threshold="));
@@ -220,7 +227,7 @@ int8_t DMComm::doComm() {
                 SERIAL_WRITE_MAYBE(' ');
             }
             SERIAL_WRITE_MAYBE('\n');
-        }
+        }*/
         if (goFirst_) {
             delay(DMCOMM_GOFIRST_REPEAT_MILLIS);
         }
@@ -230,7 +237,7 @@ int8_t DMComm::doComm() {
     return 0; //TODO
 }
 
-void DMComm::beginComm(ToyProtocol protocol) {
+void DComAnalog::beginComm(ToyProtocol protocol) {
     configIndex_ = protocol;
     startLog();
     busRelease();
@@ -238,7 +245,7 @@ void DMComm::beginComm(ToyProtocol protocol) {
     checksum_ = 0;
 }
 
-int8_t DMComm::receivePacket(uint16_t timeoutTicks) {
+int8_t DComAnalog::receivePacket(uint16_t timeoutTicks) {
     uint8_t i, r;
     if (timeoutTicks == 0) {
         timeoutTicks = CONF_WORD(timeoutReplyTicks);
@@ -274,7 +281,7 @@ int8_t DMComm::receivePacket(uint16_t timeoutTicks) {
         if (r == 2 && i == 15) {
             //opp didn't release at end of packet
             SERIAL_PRINT_MAYBE(F("r:"));
-            serialPrintHex(receivedBits_, 4);
+            //TODO serialPrintHex(receivedBits_, 4);
             SERIAL_PRINT_MAYBE(F("t "));
             addLogEvent(DMCOMM_LOG_OPP_EXIT_FAIL);
             return 16;
@@ -286,7 +293,7 @@ int8_t DMComm::receivePacket(uint16_t timeoutTicks) {
                 serial_->print(F("t:"));
                 serial_->print(i, DEC);
                 serial_->write(':');
-                serialPrintHex(receivedBits_, 4);
+                //TODO serialPrintHex(receivedBits_, 4);
                 serial_->write(' ');
             }
             addLogEvent(DMCOMM_LOG_OPP_EXIT_FAIL);
@@ -294,21 +301,21 @@ int8_t DMComm::receivePacket(uint16_t timeoutTicks) {
         }
     }
     SERIAL_PRINT_MAYBE(F("r:"));
-    serialPrintHex(receivedBits_, 4);
+    //TODO serialPrintHex(receivedBits_, 4);
     SERIAL_WRITE_MAYBE(' ');
     addLogEvent(DMCOMM_LOG_OPP_EXIT_OK);
     return 0;
 }
 
-uint16_t DMComm::getReceivedBits() {
+uint16_t DComAnalog::getReceivedBits() {
     return receivedBits_;
 }
 
-void DMComm::sendPacket(uint16_t bitsToSend) {
+void DComAnalog::sendPacket(uint16_t bitsToSend) {
     uint8_t i;
     if (serial_ != NULL) {
         serial_->print(F("s:"));
-        serialPrintHex(bitsToSend, 4);
+        //TODO serialPrintHex(bitsToSend, 4);
         serial_->write(' ');
     }
     logPacketIndex_ ++;
@@ -338,7 +345,7 @@ void DMComm::sendPacket(uint16_t bitsToSend) {
     busRelease();
 }
 
-int8_t DMComm::sendPacket(uint8_t digitsToSend[]) {
+int8_t DComAnalog::sendPacket(uint8_t digitsToSend[]) {
     uint16_t bitsToSend;
     uint16_t receivedBits = receivedBits_;
     int8_t digits[4];
@@ -412,45 +419,40 @@ int8_t DMComm::sendPacket(uint8_t digitsToSend[]) {
     return bufCur;
 }
 
-void DMComm::setPinLed(uint8_t pinLed) {
-    //TODO
-    //what if it's done before/after begin?
+void Controller::setPinLed(uint8_t pinLed) {
+    pinLed_ = pinLed;
+    pinModeMaybe(pinLed_, OUTPUT);
 }
 
-void DMComm::setSerial(Stream& serial) {
+void Controller::setSerial(Stream& serial) {
     serial_ = &serial;
 }
 
-void DMComm::setLogBuffer(uint8_t buffer[], uint16_t length) {
+void DComAnalog::setLogBuffer(uint8_t buffer[], uint16_t length) {
     logBuffer_ = buffer;
     logBufferLength_ = length;
 }
 
-void DMComm::configureDebug(DebugMode debugMode) {
+void DComAnalog::configureDebug(DebugMode debugMode) {
     debugMode_ = debugMode;
 }
 
-void DMComm::configureDebug(DebugMode debugMode, uint8_t trigger) {
+void DComAnalog::configureDebug(DebugMode debugMode, uint8_t trigger) {
     debugMode_ = debugMode;
     debugTrigger_ = trigger;
 }
 
-void DMComm::configureDebug(DebugMode debugMode, uint8_t packetNum, uint8_t ab) {
+void DComAnalog::configureDebug(DebugMode debugMode, uint8_t packetNum, uint8_t ab) {
     debugMode_ = debugMode;
     //TODO
 }
 
-uint16_t DMComm::getLogSize() {
+uint16_t DComAnalog::getLogSize() {
     return logSize_;
 }
 
-void DMComm::configureAnalog(BoardVoltage boardVoltage, uint8_t readResolution) {
-    boardVoltage_ = boardVoltage;
-    readResolution_ = readResolution;
-}
 
-
-void DMComm::serialPrintHex(uint16_t number, uint8_t numDigits) {
+void Controller::serialPrintHex(uint16_t number, uint8_t numDigits) {
     const uint8_t maxDigits = 4;
     int8_t i;
     int8_t digits[maxDigits];
@@ -469,7 +471,7 @@ void DMComm::serialPrintHex(uint16_t number, uint8_t numDigits) {
     }
 }
 
-uint8_t DMComm::readCommand() {
+uint8_t Controller::readCommand() {
     unsigned long timeStart; //same type as millis()
     unsigned long time;
     int incomingInt; //same type as Stream.read()
@@ -503,7 +505,7 @@ uint8_t DMComm::readCommand() {
     return i;
 }
 
-uint8_t DMComm::doTick(bool first) {
+uint8_t DComAnalog::doTick(bool first) {
     static unsigned long prevMicros = 0; //same type as micros()
     static uint16_t ticks = 0;
     
@@ -564,44 +566,44 @@ uint8_t DMComm::doTick(bool first) {
     }
 }
 
-void DMComm::ledOn() {
+void Controller::ledOn() {
     digitalWriteMaybe(pinLed_, HIGH);
 }
 
-void DMComm::ledOff() {
+void Controller::ledOff() {
     digitalWriteMaybe(pinLed_, LOW);
 }
 
-void DMComm::busDriveLow() {
+void DComAnalog::busDriveLow() {
     digitalWriteMaybe(pinOut_, CONF_BYTE(logicLowLevel));
     digitalWriteMaybe(pinNotOE_, LOW);
 }
 
-void DMComm::busDriveHigh() {
+void DComAnalog::busDriveHigh() {
     digitalWriteMaybe(pinOut_, CONF_BYTE(logicHighLevel));
     digitalWriteMaybe(pinNotOE_, LOW);
 }
 
-void DMComm::busRelease() {
+void DComAnalog::busRelease() {
     digitalWriteMaybe(pinNotOE_, HIGH);
     digitalWriteMaybe(pinOut_, CONF_BYTE(logicHighLevel));
     //pinOut_ is "don't care" on D-Com, but matters for A-Com
 }
 
-void DMComm::startLog() {
+void DComAnalog::startLog() {
     logSize_ = 0;
     logTicksSame_ = 0;
     logPacketIndex_ = 0;
 }
 
-void DMComm::addLogByte(uint8_t b) {
+void DComAnalog::addLogByte(uint8_t b) {
     if (logPacketIndex_ >= debugTrigger_ && logSize_ < logBufferLength_) {
         logBuffer_[logSize_] = b;
         logSize_ ++;
     }
 }
 
-void DMComm::addLogTime() {
+void DComAnalog::addLogTime() {
     if (logTicksSame_ == 0) {
         return;
     }
@@ -619,12 +621,12 @@ void DMComm::addLogTime() {
     }
 }
 
-void DMComm::addLogEvent(uint8_t b) {
+void DComAnalog::addLogEvent(uint8_t b) {
     addLogTime();
     addLogByte(b);
 }
 
-uint8_t DMComm::scaleSensorValue(uint16_t sensorValue) {
+uint8_t DComAnalog::scaleSensorValue(uint16_t sensorValue) {
     //TODO account for readResolution_
     if (boardVoltage_ == BOARD_3V3) {
         sensorValue = sensorValue / 16;
@@ -637,14 +639,14 @@ uint8_t DMComm::scaleSensorValue(uint16_t sensorValue) {
     return (uint8_t)sensorValue;
 }
 
-void DMComm::delayTicks(uint16_t ticks) {
+void DComAnalog::delayTicks(uint16_t ticks) {
     uint16_t i;
     for (i = 0; i < ticks; i ++) {
         doTick();
     }
 }
 
-void DMComm::sendBit(uint16_t bit) {
+void DComAnalog::sendBit(uint16_t bit) {
     addLogEvent(bit ? DMCOMM_LOG_SELF_SEND_BIT_1 : DMCOMM_LOG_SELF_SEND_BIT_0);
     delayTicks(bit ? CONF_WORD(bit1HighTicks) : CONF_WORD(bit0HighTicks));
     busDriveLow();
@@ -652,7 +654,7 @@ void DMComm::sendBit(uint16_t bit) {
     busDriveHigh();
 }
 
-uint16_t DMComm::busWaitTimed(uint8_t level, uint16_t timeoutTicks) {
+uint16_t DComAnalog::busWaitTimed(uint8_t level, uint16_t timeoutTicks) {
     uint16_t ticksPassed = 0;
     uint8_t logicLevel;
     do {
@@ -662,12 +664,12 @@ uint16_t DMComm::busWaitTimed(uint8_t level, uint16_t timeoutTicks) {
     return ticksPassed;
 }
 
-bool DMComm::busWait(uint8_t level, uint16_t timeoutTicks) {
+bool DComAnalog::busWait(uint8_t level, uint16_t timeoutTicks) {
     uint16_t ticksPassed = busWaitTimed(level, timeoutTicks);
     return (ticksPassed > timeoutTicks);
 }
 
-uint8_t DMComm::receiveBit() {
+uint8_t DComAnalog::receiveBit() {
     uint16_t ticksPassed;
     uint16_t timeoutTicks = CONF_WORD(timeoutBitTicks);
     bool bit0 = false;
@@ -694,30 +696,30 @@ uint8_t DMComm::receiveBit() {
     return 0;
 }
 
-void DMComm::commListen() {
+void Controller::commListen() {
     int8_t result;
-    result = receivePacket(listenTimeoutTicks_);
+    result = prongInterface_->receivePacket(listenTimeoutTicks_);
     ledOff();
     while (result == 0 || result >= 13) {
-        result = receivePacket(0);
+        result = prongInterface_->receivePacket(0);
     }
-    delayTicks(endedCaptureTicks_);
+    prongInterface_->delayTicks(endedCaptureTicks_);
     ledOn();
     SERIAL_WRITE_MAYBE('\n');
 }
 
-void DMComm::commBasic() {
+void Controller::commBasic() {
     int8_t bufCur = 2;
     int8_t result;
     if (!goFirst_) {
-        if (receivePacket(listenTimeoutTicks_)) {
+        if (prongInterface_->receivePacket(listenTimeoutTicks_)) {
             SERIAL_WRITE_MAYBE('\n');
             return;
         }
     }
     ledOff();
     while (1) {
-        result = sendPacket(commandBuffer_ + bufCur);
+        result = prongInterface_->sendPacket(commandBuffer_ + bufCur);
         if (result == 0) {
             //the end
             break;
@@ -728,11 +730,13 @@ void DMComm::commBasic() {
             break;
         }
         bufCur += result;
-        if (receivePacket(0)) {
+        if (prongInterface_->receivePacket(0)) {
             break;
         }
     }
-    delayTicks(endedCaptureTicks_);
+    prongInterface_->delayTicks(endedCaptureTicks_);
     ledOn();
     Serial.println();
+}
+
 }
