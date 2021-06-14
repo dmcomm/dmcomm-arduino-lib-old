@@ -41,6 +41,8 @@ void DComAnalog::begin() {
     pinMode(pinAnalog_, INPUT);
     pinModeMaybe(pinOut_, OUTPUT);
     pinModeMaybe(pinNotOE_, OUTPUT);
+    configIndex_ = PROTOCOL_V;
+    busRelease();
 }
 
 void DComAnalog::end() {}
