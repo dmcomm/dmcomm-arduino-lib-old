@@ -101,6 +101,18 @@ private:
      * Interact with the toy on the other end of the connection.
      */
     void commBasic();
+
+    /**
+     * Send a single packet and report the result on serial.
+     * See DComAnalog::sendPacket.
+     */
+    int8_t sendPacketAndReport(uint8_t digitsToSend[]);
+
+    /**
+     * Receive a single packet and report the result on serial.
+     * See DComAnalog::receivePacket.
+     */
+    int8_t receivePacketAndReport(uint16_t timeoutTicks=0);
 };
 
 } /* namespace DMComm */

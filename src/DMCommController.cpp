@@ -230,10 +230,10 @@ void Controller::ledOff() {
 
 void Controller::commListen() {
     int8_t result;
-    result = prongInterface_->receivePacket(listenTimeoutTicks_);
+    result = receivePacketAndReport(listenTimeoutTicks_);
     ledOff();
     while (result == 0 || result >= 13) {
-        result = prongInterface_->receivePacket(0);
+        result = receivePacketAndReport(0);
     }
     prongInterface_->delayTicks(endedCaptureTicks_);
     ledOn();
@@ -244,31 +244,89 @@ void Controller::commBasic() {
     int8_t bufCur = 2;
     int8_t result;
     if (!goFirst_) {
-        if (prongInterface_->receivePacket(listenTimeoutTicks_)) {
+        if (receivePacketAndReport(listenTimeoutTicks_)) {
             SERIAL_WRITE_MAYBE('\n');
             return;
         }
     }
     ledOff();
     while (1) {
-        result = prongInterface_->sendPacket(commandBuffer_ + bufCur);
-        if (result == 0) {
-            //the end
-            break;
-        }
-        if (result == -1) {
-            //makePacket error
-            SERIAL_PRINT_MAYBE(F("s:?"));
+        result = sendPacketAndReport(commandBuffer_ + bufCur);
+        if (result <= 0) {
+            //finished or error
             break;
         }
         bufCur += result;
-        if (prongInterface_->receivePacket(0)) {
+        if (receivePacketAndReport(0)) {
             break;
         }
     }
     prongInterface_->delayTicks(endedCaptureTicks_);
     ledOn();
-    Serial.println();
+    SERIAL_WRITE_MAYBE('\n');
+}
+
+int8_t Controller::sendPacketAndReport(uint8_t digitsToSend[]) {
+    int8_t result = prongInterface_->sendPacket(digitsToSend);
+    switch (result) {
+    case 0:
+        //nothing to do
+        break;
+    case -1:
+        //packet error
+        SERIAL_PRINT_MAYBE(F("s:?"));
+        break;
+    default:
+        //OK
+        if (serial_ != NULL) {
+            serial_->print(F("s:"));
+            serialPrintHex(prongInterface_->getSentBits(), 4);
+            serial_->write(' ');
+        }
+    }
+    return result;
+}
+
+int8_t Controller::receivePacketAndReport(uint16_t timeoutTicks) {
+    int8_t result = prongInterface_->receivePacket(timeoutTicks);
+    uint16_t receivedBits = prongInterface_->getReceivedBits();
+    switch (result) {
+    case 0:
+        //OK
+        SERIAL_PRINT_MAYBE(F("r:"));
+        serialPrintHex(receivedBits, 4);
+        SERIAL_WRITE_MAYBE(' ');
+        break;
+    case 16:
+        //opp didn't release at end of packet
+        SERIAL_PRINT_MAYBE(F("r:"));
+        serialPrintHex(receivedBits, 4);
+        SERIAL_PRINT_MAYBE(F("t "));
+        break;
+    case -4:
+        //got nothing
+        SERIAL_PRINT_MAYBE(F("t "));
+        break;
+    case -3:
+        SERIAL_PRINT_MAYBE(F("t:-3 "));
+        break;
+    case -2:
+        SERIAL_PRINT_MAYBE(F("t:-2 "));
+        break;
+    case -1:
+        SERIAL_PRINT_MAYBE(F("t:-1 "));
+        break;
+    default:
+        //got broken packet
+        if (serial_ != NULL) {
+            serial_->print(F("t:"));
+            serial_->print(result, DEC);
+            serial_->write(':');
+            serialPrintHex(receivedBits, 4);
+            serial_->write(' ');
+        }
+    }
+    return result;
 }
 
 } /* namespace DMComm */

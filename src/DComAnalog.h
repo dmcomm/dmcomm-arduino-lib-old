@@ -59,6 +59,12 @@ public:
     uint16_t getReceivedBits();
 
     /**
+     * Get the bits from the most recent send.
+     * @return the 16 bits sent.
+     */
+    uint16_t getSentBits();
+
+    /**
      * Send the 16 bits specified.
      * @param bitsToSend the 16 bits to send.
      */
@@ -122,7 +128,6 @@ private:
     uint8_t pinNotOE_ = DMCOMM_NO_PIN;
     DebugMode debugMode_ = DEBUG_OFF;
     uint8_t debugTrigger_ = 0;
-    Stream *serial_ = nullptr; //probably going to get rid of this
     uint8_t *logBuffer_ = nullptr;
     uint16_t logBufferLength_ = 0;
     uint16_t logSize_ = 0;
@@ -131,6 +136,7 @@ private:
     uint8_t logPrevSensorLevel_;
     ToyProtocol configIndex_ = PROTOCOL_V;
     uint16_t receivedBits_ = 0;
+    uint16_t sentBits_ = 0;
     uint8_t checksum_;
 
     /**

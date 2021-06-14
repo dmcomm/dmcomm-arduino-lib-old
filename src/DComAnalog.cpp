@@ -61,26 +61,22 @@ int8_t DComAnalog::receivePacket(uint16_t timeoutTicks) {
     addLogEvent(DMCOMM_LOG_OPP_ENTER_WAIT);
     if (busWait(LOW, timeoutTicks)) {
         addLogEvent(DMCOMM_LOG_OPP_EXIT_FAIL);
-        //TODO SERIAL_PRINT_MAYBE(F("t "));
         return -4;
     }
     logPacketIndex_ ++;
     addLogEvent(DMCOMM_LOG_OPP_INIT_PULLDOWN);
     if (busWait(HIGH, CONF_WORD(timeoutBitsTicks))) {
         addLogEvent(DMCOMM_LOG_OPP_EXIT_FAIL);
-        //TODO SERIAL_PRINT_MAYBE(F("t:-3 "));
         return -3;
     }
     addLogEvent(DMCOMM_LOG_OPP_START_BIT_HIGH);
     if (busWait(LOW, CONF_WORD(timeoutBitTicks))) {
         addLogEvent(DMCOMM_LOG_OPP_EXIT_FAIL);
-        //TODO SERIAL_PRINT_MAYBE(F("t:-2 "));
         return -2;
     }
     addLogEvent(DMCOMM_LOG_OPP_START_BIT_LOW);
     if (busWait(HIGH, CONF_WORD(timeoutBitTicks))) {
         addLogEvent(DMCOMM_LOG_OPP_EXIT_FAIL);
-        //TODO SERIAL_PRINT_MAYBE(F("t:-1 "));
         return -1;
     }
     addLogEvent(DMCOMM_LOG_OPP_BITS_BEGIN_HIGH);
@@ -88,29 +84,16 @@ int8_t DComAnalog::receivePacket(uint16_t timeoutTicks) {
         r = receiveBit();
         if (r == 2 && i == 15) {
             //opp didn't release at end of packet
-            //TODO SERIAL_PRINT_MAYBE(F("r:"));
-            //TODO serialPrintHex(receivedBits_, 4);
-            //TODO SERIAL_PRINT_MAYBE(F("t "));
             addLogEvent(DMCOMM_LOG_OPP_EXIT_FAIL);
             return 16;
         } else if (r != 0) {
             //packet failed
             r = i + r - 1; //number of bits received
             receivedBits_ >>= (16-r);
-            if (serial_ != NULL) {
-                serial_->print(F("t:"));
-                serial_->print(i, DEC);
-                serial_->write(':');
-                //TODO serialPrintHex(receivedBits_, 4);
-                serial_->write(' ');
-            }
             addLogEvent(DMCOMM_LOG_OPP_EXIT_FAIL);
             return r;
         }
     }
-    //TODO SERIAL_PRINT_MAYBE(F("r:"));
-    //TODO serialPrintHex(receivedBits_, 4);
-    //TODO SERIAL_WRITE_MAYBE(' ');
     addLogEvent(DMCOMM_LOG_OPP_EXIT_OK);
     return 0;
 }
@@ -119,13 +102,14 @@ uint16_t DComAnalog::getReceivedBits() {
     return receivedBits_;
 }
 
+uint16_t DComAnalog::getSentBits() {
+    return sentBits_;
+}
+
 void DComAnalog::sendPacket(uint16_t bitsToSend) {
     uint8_t i;
-    if (serial_ != NULL) {
-        serial_->print(F("s:"));
-        //TODO serialPrintHex(bitsToSend, 4);
-        serial_->write(' ');
-    }
+    sentBits_ = bitsToSend;
+    
     logPacketIndex_ ++;
     addLogEvent(DMCOMM_LOG_SELF_ENTER_DELAY);
     delayTicks(CONF_WORD(preHighTicks));
