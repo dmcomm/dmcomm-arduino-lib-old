@@ -24,17 +24,26 @@ void Controller::loop() {
         serial_->print(F(" bytes: "));
         serial_->write(commandBuffer_, length);
         serial_->print(F(" -> "));
-        execute(commandBuffer_);
+        execute(nullptr);
         //TODO add conditional delay after execute has a return value
     }
     doComm();
 }
 
 int8_t Controller::execute(uint8_t command[]) {
-    //TODO fix handling of parameter
     uint8_t i = 0;
-    while (commandBuffer_[i] != '\0') {
-        i ++;
+    if (command == nullptr) {
+        //just check the length
+        while (commandBuffer_[i] != '\0') {
+            i ++;
+        }
+    } else {
+        //copy to internal buffer and check the length
+        while (command[i] != '\0' && i < DMCOMM_COMMAND_BUFFER_SIZE - 1) {
+            commandBuffer_[i] = command[i];
+            i ++;
+        }
+        commandBuffer_[i] = '\0';
     }
     if (commandBuffer_[0] == 't' || commandBuffer_[0] == 'T') {
         SERIAL_PRINT_MAYBE(F("[test voltages]\n"));

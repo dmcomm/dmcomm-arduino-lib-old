@@ -29,6 +29,7 @@ public:
      * Communication pattern codes configure the system to prepare for calling `doComm`.
      * Config codes are executed immmediately.
      * @param command a null-terminated byte string containing the command.
+     * Internal use: if nullptr, will use what is already stored (set by `loop`).
      * @return (not decided yet).
      */
     int8_t execute(uint8_t command[]);
