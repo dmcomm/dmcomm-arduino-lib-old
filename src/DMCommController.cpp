@@ -280,7 +280,7 @@ int8_t Controller::sendPacketAndReport(uint8_t digitsToSend[]) {
         //OK
         if (serial_ != NULL) {
             serial_->print(F("s:"));
-            serialPrintHex(prongInterface_->getSentBits(), 4);
+            serialPrintHex(prongInterface_->getBitsSent(), 4);
             serial_->write(' ');
         }
     }
@@ -289,18 +289,18 @@ int8_t Controller::sendPacketAndReport(uint8_t digitsToSend[]) {
 
 int8_t Controller::receivePacketAndReport(uint16_t timeoutTicks) {
     int8_t result = prongInterface_->receivePacket(timeoutTicks);
-    uint16_t receivedBits = prongInterface_->getReceivedBits();
+    uint16_t bitsReceived = prongInterface_->getBitsReceived();
     switch (result) {
     case 0:
         //OK
         SERIAL_PRINT_MAYBE(F("r:"));
-        serialPrintHex(receivedBits, 4);
+        serialPrintHex(bitsReceived, 4);
         SERIAL_WRITE_MAYBE(' ');
         break;
     case 16:
         //opp didn't release at end of packet
         SERIAL_PRINT_MAYBE(F("r:"));
-        serialPrintHex(receivedBits, 4);
+        serialPrintHex(bitsReceived, 4);
         SERIAL_PRINT_MAYBE(F("t "));
         break;
     case -4:
@@ -322,7 +322,7 @@ int8_t Controller::receivePacketAndReport(uint16_t timeoutTicks) {
             serial_->print(F("t:"));
             serial_->print(result, DEC);
             serial_->write(':');
-            serialPrintHex(receivedBits, 4);
+            serialPrintHex(bitsReceived, 4);
             serial_->write(' ');
         }
     }

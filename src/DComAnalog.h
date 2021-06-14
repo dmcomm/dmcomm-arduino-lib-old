@@ -56,13 +56,13 @@ public:
      * Get the bits from the most recent receive attempt.
      * @return the 16 bits received. If less than 16 were received, the result is right-aligned.
      */
-    uint16_t getReceivedBits();
+    uint16_t getBitsReceived();
 
     /**
      * Get the bits from the most recent send.
      * @return the 16 bits sent.
      */
-    uint16_t getSentBits();
+    uint16_t getBitsSent();
 
     /**
      * Send the 16 bits specified.
@@ -135,8 +135,8 @@ private:
     uint8_t logPacketIndex_;
     uint8_t logPrevSensorLevel_;
     ToyProtocol configIndex_ = PROTOCOL_V;
-    uint16_t receivedBits_ = 0;
-    uint16_t sentBits_ = 0;
+    uint16_t bitsReceived_ = 0;
+    uint16_t bitsSent_ = 0;
     uint8_t checksum_;
 
     /**
@@ -207,7 +207,7 @@ private:
     bool busWait(uint8_t level, uint16_t timeoutTicks);
 
     /**
-     * Receive one bit, and rotate into `receivedBits_` from the left.
+     * Receive one bit, and rotate into `bitsReceived_` from the left.
      * @return 0 on success, 1 on bit error, 2 on error after receiving bit.
      */
     uint8_t receiveBit();

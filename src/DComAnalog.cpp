@@ -49,7 +49,7 @@ void DComAnalog::beginComm(ToyProtocol protocol) {
     configIndex_ = protocol;
     startLog();
     busRelease();
-    receivedBits_ = 0;
+    bitsReceived_ = 0;
     checksum_ = 0;
 }
 
@@ -89,7 +89,7 @@ int8_t DComAnalog::receivePacket(uint16_t timeoutTicks) {
         } else if (r != 0) {
             //packet failed
             r = i + r - 1; //number of bits received
-            receivedBits_ >>= (16-r);
+            bitsReceived_ >>= (16-r);
             addLogEvent(DMCOMM_LOG_OPP_EXIT_FAIL);
             return r;
         }
@@ -98,17 +98,17 @@ int8_t DComAnalog::receivePacket(uint16_t timeoutTicks) {
     return 0;
 }
 
-uint16_t DComAnalog::getReceivedBits() {
-    return receivedBits_;
+uint16_t DComAnalog::getBitsReceived() {
+    return bitsReceived_;
 }
 
-uint16_t DComAnalog::getSentBits() {
-    return sentBits_;
+uint16_t DComAnalog::getBitsSent() {
+    return bitsSent_;
 }
 
 void DComAnalog::sendPacket(uint16_t bitsToSend) {
     uint8_t i;
-    sentBits_ = bitsToSend;
+    bitsSent_ = bitsToSend;
     
     logPacketIndex_ ++;
     addLogEvent(DMCOMM_LOG_SELF_ENTER_DELAY);
@@ -139,7 +139,7 @@ void DComAnalog::sendPacket(uint16_t bitsToSend) {
 
 int8_t DComAnalog::sendPacket(uint8_t digitsToSend[]) {
     uint16_t bitsToSend;
-    uint16_t receivedBits = receivedBits_;
+    uint16_t bitsReceived = bitsReceived_;
     int8_t digits[4];
     int8_t dCur;
     int8_t dCurChk = -1;
@@ -156,8 +156,8 @@ int8_t DComAnalog::sendPacket(uint8_t digitsToSend[]) {
     }
     //unpack bits received into digits
     for (dCur = 3; dCur >= 0; dCur --) {
-        digits[dCur] = receivedBits & 0xF;
-        receivedBits >>= 4;
+        digits[dCur] = bitsReceived & 0xF;
+        bitsReceived >>= 4;
     }
     for (dCur = 0; dCur < 4; dCur ++) {
         b1 = digitsToSend[bufCur];
@@ -408,10 +408,10 @@ uint8_t DComAnalog::receiveBit() {
     if (CONF_BYTE(invertBitRead)) {
         bit0 = !bit0;
     }
-    receivedBits_ >>= 1;
+    bitsReceived_ >>= 1;
     if (bit0) {
         addLogEvent(DMCOMM_LOG_OPP_GOT_BIT_1);
-        receivedBits_ |= 0x8000;
+        bitsReceived_ |= 0x8000;
     } else {
         addLogEvent(DMCOMM_LOG_OPP_GOT_BIT_0);
     }
